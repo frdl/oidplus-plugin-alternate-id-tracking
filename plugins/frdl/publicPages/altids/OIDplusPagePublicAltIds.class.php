@@ -131,12 +131,12 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 		$xmlschemauri = OIDplus::webpath(__DIR__.'/altids.xsd',OIDplus::PATH_ABSOLUTE);
 
 		$info = $this->handleAltIds($id, true);
-                $canonicalShown = false;
+                $handleShown = false;
+		$canonicalShown = false;
 		
 		foreach($info['altIds'] as $alt){
- 
-     
-			if(false === $canonicalShown && $alt['id'] === $id){
+			
+ 			if(false === $canonicalShown && $alt['ns'] === 'oid'){
 			    $canonicalShown=true;
 				
 				$out[] = [				
@@ -144,6 +144,19 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 					'xmlschema' => $xmlschema,				
 					'xmlschemauri' => $xmlschemauri,				
 					'name' => 'canonical-identifier',				
+					'value' => $alt['ns'].':'.$alt['alt'],			
+				];
+    
+			}
+     
+			if(false === $handleShown && $alt['id'] === $id){
+			    $handleShown=true;
+				
+				$out[] = [				
+					'xmlns' => $xmlns,				
+					'xmlschema' => $xmlschema,				
+					'xmlschemauri' => $xmlschemauri,				
+					'name' => 'handle-identifier',				
 					'value' => $alt['id'],			
 				];
     
