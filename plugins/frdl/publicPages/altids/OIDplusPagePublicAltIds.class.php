@@ -26,6 +26,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
                    `alt` varchar(256) NOT NULL,
                    `ns` varchar(32) NOT NULL DEFAULT 'guid',
                    `description` varchar(256) NOT NULL,
+                   `t` int(11) NOT NULL,
                    PRIMARY KEY (`alt_id`),
                    UNIQUE KEY `id` (`id`,`alt`,`ns`) USING BTREE
                  ) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
@@ -261,11 +262,12 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 			 foreach($info['notInDB'] as $num => $_inf){
 				// die($obj->nodeId(true));
 			  try{	 
-				 $res = OIDplus::db()->query("insert into ".OIDplus::baseConfig()->getValue('TABLENAME_PREFIX', 'oidplus_')."alt_ids set id = ?, alt = ?,ns = ?,description = ?", [
+				 $res = OIDplus::db()->query("insert into ".OIDplus::baseConfig()->getValue('TABLENAME_PREFIX', 'oidplus_')."alt_ids set id = ?, alt = ?,ns = ?,description = ?, t = ?", [
 					 $obj->nodeId(true),
 					 $_inf['alt'],
 					 $_inf['ns'],
-					 $_inf['description'],					 
+					 $_inf['description'],	
+					 time(),
 				 ]); 
 	           }catch(\Exception $e){
 	            //   die(print_r($e->getMessage(),true));   
