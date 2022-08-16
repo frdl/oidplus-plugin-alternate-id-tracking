@@ -3,6 +3,7 @@
            attributeFormDefault="unqualified"
            elementFormDefault="qualified"
            xmlns:xs="http://www.w3.org/2001/XMLSchema">
+<xs:element type="xs:string" name="handle-identifier" />
 <xs:element type="xs:string" name="canonical-identifier" />
 <xs:element type="xs:string" name="alternate-identifier" />
 </xs:schema>
