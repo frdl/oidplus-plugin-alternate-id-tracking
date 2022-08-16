@@ -17,16 +17,18 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
  
 	}
 
+	
 	public function init($html=true) {
-      OIDplus::db()->query("CREATE TABLE IF NOT EXISTS ###alt_ids (
-  `alt_id` int(11) NOT NULL AUTO_INCREMENT,
-  `id` varchar(256) NOT NULL,
-  `alt` varchar(256) NOT NULL,
-  `ns` varchar(32) NOT NULL DEFAULT 'guid',
-  `description` varchar(256) NOT NULL,
-  PRIMARY KEY (`alt_id`),
-  UNIQUE KEY `id` (`id`,`alt`,`ns`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
+     
+		OIDplus::db()->query("CREATE TABLE IF NOT EXISTS ###alt_ids (
+                   `alt_id` int(11) NOT NULL AUTO_INCREMENT,
+                   `id` varchar(256) NOT NULL,
+                   `alt` varchar(256) NOT NULL,
+                   `ns` varchar(32) NOT NULL DEFAULT 'guid',
+                   `description` varchar(256) NOT NULL,
+                   PRIMARY KEY (`alt_id`),
+                   UNIQUE KEY `id` (`id`,`alt`,`ns`) USING BTREE
+                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
     
     
 	}
@@ -57,28 +59,64 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 
 		$output = '';
 		$doshow = false;
-      try{
-        $this->handleAltIds($id, true);
-      }catch(\Exception $e){
-          throw new OIDplusException($e->getMessage());
-      }
+    
+		$this->_handle($id);     
+		
+		if(!empty($output)){
+		   $text.=$output;	
+		}
 	}
   
-
-	public function beforeObjectDelete($id) {
-    // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
-    
-  } 
+       
+	protected function _handle($id){
+				
+		try{        
+			$this->handleAltIds($id, true);     
+		}catch(\Exception $e){       
+			throw new OIDplusException($e->getMessage());    
+		}
+		
+	}
+	protected function _del($id){
+	   $p= explode(':', $id, 2);
+		$ns = $p[0];
+		$IDX=$p[1];
+		
+	    OIDplus::db()->query("DELETE FROM ###alt_ids WHERE `id` = ? OR (`ns` = ? AND `alt_id` = ? )", [$id, $ns, $IDX]);
+		
+	}
+	
+	public function beforeObjectDelete($id) {  
+		// Interface 1.3.6.1.4.1.37476.2.5.2.3.3    
+               $this->_del($id);
+		
+	} 
+	
 	public function afterObjectDelete($id) {
 		// Interface 1.3.6.1.4.1.37476.2.5.2.3.3
-	 
+		$this->_del($id);
 	}
 	public function beforeObjectUpdateSuperior($id, &$params) {} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
-	public function afterObjectUpdateSuperior($id, &$params) {} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
+	public function afterObjectUpdateSuperior($id, &$params) {
+	
+	} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
 	public function beforeObjectUpdateSelf($id, &$params) {} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
-	public function afterObjectUpdateSelf($id, &$params) {} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
+	
+	public function afterObjectUpdateSelf($id, &$params) {
+	   $this->_del($id);	
+	   $this->_handle($id);     
+	} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
+	
+	
+	
 	public function beforeObjectInsert($id, &$params) {} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
-	public function afterObjectInsert($id, &$params) {} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
+	
+	
+	public function afterObjectInsert($id, &$params) {
+	   $this->_handle($id);     
+	} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
+	
+	
 
 	public function tree_search($request) {
 		return false;
@@ -91,23 +129,32 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 		$xmlschema = 'urn:oid:1.3.6.1.4.1.37553.8.1.8.8.53354196964.641310544.1714020422';
 		$xmlschemauri = OIDplus::webpath(__DIR__.'/altids.xsd',OIDplus::PATH_ABSOLUTE);
 
-    /*
-     alternate-identifier  altids.xsd ...
-    */
+
+
+		$info = $this->handleAltIds($id, true);
     
-    $info = $this->handleAltIds($id, true);
-    foreach($info['altIds'] as $alt){
+		foreach($info['altIds'] as $alt){
  
-     if($alt['alt'] === $id){
-			$out[] = [
-				'xmlns' => $xmlns,
-				'xmlschema' => $xmlschema,
-				'xmlschemauri' => $xmlschemauri,
-				'name' => 'canonical-identifier',
-				'value' => $alt['id'],
-			];
-     }
+     
+			if($alt['alt'] === $id){
+			
+				$out[] = [
+				
+					'xmlns' => $xmlns,
+				
+					'xmlschema' => $xmlschema,
+				
+					'xmlschemauri' => $xmlschemauri,
+				
+					'name' => 'canonical-identifier',
+				
+					'value' => $alt['id'],
+			
+				];
+    
+			}
       
+		
 			$out[] = [
 				'xmlns' => $xmlns,
 				'xmlschema' => $xmlschema,
@@ -115,13 +162,18 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 				'name' => 'alternate-identifier',
 				'value' => $alt['ns'].':'.$alt['alt'],
 			];     
-    }
+  
+		}
  
+	
 	}
+	
+	
 	public function whoisRaAttributes($email, &$out) {
-     // Interface 1.3.6.1.4.1.37476.2.5.2.3.4
+           // Interface 1.3.6.1.4.1.37476.2.5.2.3.4
     
-  } 
+
+	} 
   
   
  
@@ -144,7 +196,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 				     
 				  ];
 		  }
-		 //  die(print_r($alt_ids,true));
+		  
 		  $res_alt_ids = [];
 		  $res_alt=[];
 			  $res = OIDplus::db()->query("select * from ".OIDplus::baseConfig()->getValue('TABLENAME_PREFIX', 'oidplus_')."alt_ids where id = ?", [$obj->nodeId(true)]);
