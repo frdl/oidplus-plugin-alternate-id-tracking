@@ -1,7 +1,7 @@
 <?php
 
 /*
- * OIDplus 2.0
+ * AltIds Tracking and Reverse Lookup Plugin for OIDplus 2.0
  * Copyright 2022 Till Wehowski, Frdlweb
  *
  * Licensed under the MIT License.
