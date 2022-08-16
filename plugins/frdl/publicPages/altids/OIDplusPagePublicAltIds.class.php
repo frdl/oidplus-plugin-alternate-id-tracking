@@ -83,7 +83,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 		$ns = $p[0];
 		$IDX=$p[1];
 		
-	    OIDplus::db()->query("DELETE FROM ###alt_ids WHERE `id` = ? OR (`ns` = ? AND `alt_id` = ? )", [$id, $ns, $IDX]);
+	    OIDplus::db()->query("DELETE FROM ###alt_ids WHERE `id` = ? OR (`ns` = ? AND `alt` = ? )", [$id, $ns, $IDX]);
 		
 	}
 	
