@@ -130,27 +130,21 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 		$xmlschema = 'urn:oid:1.3.6.1.4.1.37553.8.1.8.8.53354196964.641310544.1714020422';
 		$xmlschemauri = OIDplus::webpath(__DIR__.'/altids.xsd',OIDplus::PATH_ABSOLUTE);
 
-
-
 		$info = $this->handleAltIds($id, true);
-    
+                $canonicalShown = false;
+		
 		foreach($info['altIds'] as $alt){
  
      
-			if($alt['alt'] === $id){
-			
-				$out[] = [
+			if(false === $canonicalShown && $alt['id'] === $id){
+			    $canonicalShown=true;
 				
-					'xmlns' => $xmlns,
-				
-					'xmlschema' => $xmlschema,
-				
-					'xmlschemauri' => $xmlschemauri,
-				
-					'name' => 'canonical-identifier',
-				
-					'value' => $alt['id'],
-			
+				$out[] = [				
+					'xmlns' => $xmlns,				
+					'xmlschema' => $xmlschema,				
+					'xmlschemauri' => $xmlschemauri,				
+					'name' => 'canonical-identifier',				
+					'value' => $alt['id'],			
 				];
     
 			}
@@ -171,8 +165,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 	
 	
 	public function whoisRaAttributes($email, &$out) {
-           // Interface 1.3.6.1.4.1.37476.2.5.2.3.4
-    
+           // Interface 1.3.6.1.4.1.37476.2.5.2.3.4    
 
 	} 
   
@@ -249,18 +242,18 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 	  ];
    }
 	
-	 public function handleAltIds($id, $insertMissing = false){
-		 	   try{
+  public function handleAltIds($id, $insertMissing = false){
+		  try{
 	             $obj = OIDplusObject::parse($id);
 	           }catch(\Exception $e){
-	                	$obj = false; 
+	                $obj = false; 
 	           }
-		 $info = (false===$obj) ? $obj : $this->getAltIdsInfo($id);
-		 if(false!==$obj && true === $insertMissing && 0<count($info['notInDB']) ){
+	 $info = (false===$obj) ? $obj : $this->getAltIdsInfo($id);
+	 if(false!==$obj && true === $insertMissing && 0<count($info['notInDB']) ){
 			 
-			// foreach(array_unique($info['notInDB']) as $num => $_inf){
-			 foreach($info['notInDB'] as $num => $_inf){
-				// die($obj->nodeId(true));
+		// foreach(array_unique($info['notInDB']) as $num => $_inf){
+		 foreach($info['notInDB'] as $num => $_inf){
+				
 			  try{	 
 				 $res = OIDplus::db()->query("insert into ".OIDplus::baseConfig()->getValue('TABLENAME_PREFIX', 'oidplus_')."alt_ids set id = ?, alt = ?,ns = ?,description = ?, t = ?", [
 					 $obj->nodeId(true),
@@ -269,15 +262,15 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 					 $_inf['description'],	
 					 time(),
 				 ]); 
-	           }catch(\Exception $e){
-	            //   die(print_r($e->getMessage(),true));   
-				  throw new OIDplusException($e->getMessage());
-	           }
-				// die(print_r($res,true));
-			 }
-			 $info = $this->getAltIdsInfo($id);
+	         
+			  }catch(\Exception $e){			
+				  throw new OIDplusException($e->getMessage());	         
+			  }
+				
 		 }
-		return $info;
-	 } 
-  
-}
+			 $info = $this->getAltIdsInfo($id);
+	}
+     return $info;
+   } 
+	
+ }
