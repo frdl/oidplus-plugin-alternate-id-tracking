@@ -46,15 +46,15 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 		return false;
 	}
 
-    public function getAlternativesForQuery($id) {
+       public function getAlternativesForQuery($id) {
 		$alternatives = [];
 		$info = $this->getAltIdsInfo($id);
 
 		foreach($info['altIds'] as $i){;
-			$alternatives[$i['alt']]= $i['alt'];
-			$alternatives[$i['id']]= $i['id'];
+			$alternatives[$i['alt']]=('oid'===$i['ns']) ? $i['ns'].':'.$i['alt']: $i['alt'];
+			$alternatives[$i['id']]=('oid'===$i['ns']) ? $i['ns'].':'.$i['id']: $i['id']; 
 		}
-
+ 
 		return array_values($alternatives);       
 	}
 
