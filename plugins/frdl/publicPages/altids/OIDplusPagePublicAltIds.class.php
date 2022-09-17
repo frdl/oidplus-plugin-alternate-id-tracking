@@ -1,7 +1,7 @@
 <?php
 
 /*
- * AltIds Tracking and Reverse Lookup Plugin for OIDplus 2.0
+ * OIDplus 2.0
  * Copyright 2022 Till Wehowski, Frdlweb
  *
  * Licensed under the MIT License.
@@ -46,12 +46,23 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 		return false;
 	}
 
- 
+    public function getAlternativesForQuery($id) {
+		$alternatives = [];
+		$info = $this->getAltIdsInfo($id);
+
+		foreach($info['altIds'] as $i){;
+			$alternatives[$i['alt']]= $i['alt'];
+			$alternatives[$i['id']]= $i['id'];
+		}
+
+		return array_values($alternatives);       
+	}
 
 	public function implementsFeature($id) {
 		if (strtolower($id) == '1.3.6.1.4.1.37476.2.5.2.3.2') return true; // modifyContent
 		if (strtolower($id) == '1.3.6.1.4.1.37476.2.5.2.3.3') return true; // beforeObject*, afterObject*
 		if (strtolower($id) == '1.3.6.1.4.1.37476.2.5.2.3.4') return true; // whois*Attributes
+		if (strtolower($id) == '1.3.6.1.4.1.37476.2.5.2.3.7') return true; // getAlternativesForQuery
 		return false;
 	}
 
@@ -83,7 +94,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 		$ns = $p[0];
 		$IDX=$p[1];
 		
-	    OIDplus::db()->query("DELETE FROM ###alt_ids WHERE `id` = ? OR (`ns` = ? AND `alt` = ? )", [$id, $ns, $IDX]);
+	    OIDplus::db()->query("DELETE FROM ###alt_ids WHERE `id` = ? OR (`ns` = ? AND `alt_id` = ? )", [$id, $ns, $IDX]);
 		
 	}
 	
@@ -182,7 +193,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 
 	} 
   
-  
+
  
    public function getAltIdsInfo($id){
 	try{
