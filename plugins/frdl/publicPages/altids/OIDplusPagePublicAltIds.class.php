@@ -45,18 +45,37 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 	public function tree(&$json, $ra_email=null, $nonjs=false, $req_goto='') {
 		return false;
 	}
+	      
+	public static function getAlternatives($id) {
+                $alt_ids = array();
+                $rev_lookup = array();
+			   $n = explode(':', $id, 2);
+			   
 
+                $res = OIDplus::db()->query("select * from ".OIDplus::baseConfig()->getValue('TABLENAME_PREFIX', 'oidplus_')."alt_ids where id = ? OR ( alt = ? AND ns = ?)", [$id, $n[1], $n[0]]);
+                while ($row = $res->fetch_array()) {
+                        $obj = OIDplusObject::parse($row['id']);
+                        if (!$obj) continue; // e.g. if plugin is disabled
+                        $ary = $obj->getAltIds();
+                        foreach ($ary as $a) {
+                                $origin = $obj->nodeId(true);
+                                $alternative = $a->getNamespace() . ':' . $a->getId();
+
+                                if (!isset($alt_ids[$origin])) $alt_ids[$origin] = array();
+                                $alt_ids[$origin][] = $alternative;
+
+                                if (!isset($rev_lookup[$alternative])) $rev_lookup[$alternative] = array();
+                                $rev_lookup[$alternative][] = $origin;
+                        }
+                }
+                return array($alt_ids, $rev_lookup);
+        }	
+/* Nur zum Test !!! */
        public function getAlternativesForQuery($id) {
-		$alternatives = [];
-		$info = $this->getAltIdsInfo($id);
-
-		foreach($info['altIds'] as $i){;
-			$alternatives[$i['alt']]=('oid'===$i['ns']) ? $i['ns'].':'.$i['alt']: $i['alt'];
-			$alternatives[$i['id']]=('oid'===$i['ns']) ? $i['ns'].':'.$i['id']: $i['id']; 
-		}
- 
-		return array_values($alternatives);       
-	}
+                list($alt_ids, $rev_lookup) = self::getAlternatives($id);
+                if (!isset($rev_lookup[$id])) return array();
+                return $rev_lookup[$id];
+        }
 
 	public function implementsFeature($id) {
 		if (strtolower($id) == '1.3.6.1.4.1.37476.2.5.2.3.2') return true; // modifyContent
