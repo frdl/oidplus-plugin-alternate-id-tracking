@@ -2,7 +2,7 @@
 
 /*
  * OIDplus 2.0
- * Copyright 2022 Till Wehowski, Frdlweb
+ * Copyright 2022 Daniel Marschall, ViaThinkSoft / Till Wehowski, Frdlweb
  *
  * Licensed under the MIT License.
  */
@@ -12,30 +12,46 @@ if (!defined('INSIDE_OIDPLUS')) die();
 class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 
 
+	protected static $cache = null;
+	
+    public static function __callStatic($name, $arguments){
+		return call_user_func_array([new self, str_replace('Static', '', $name)], $arguments);
+    }	
+	
 	public function action($actionID, $params) {
 
- 
 	}
 
 	
 	public function init($html=true) {
-     
-		OIDplus::db()->query("CREATE TABLE IF NOT EXISTS ###alt_ids (
-                   `alt_id` int(11) NOT NULL AUTO_INCREMENT,
-                   `id` varchar(256) NOT NULL,
-                   `alt` varchar(256) NOT NULL,
-                   `ns` varchar(32) NOT NULL DEFAULT 'guid',
-                   `description` varchar(256) NOT NULL,
-                   `t` int(11) NOT NULL,
-                   PRIMARY KEY (`alt_id`),
-                   UNIQUE KEY `id` (`id`,`alt`,`ns`) USING BTREE
-                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
-    
-    
+       if('GET' === $_SERVER['REQUEST_METHOD'] && 'webwhois.php' === basename($_SERVER['PHP_SELF']) && isset($_GET['query'])){
+		   $canonical = $this->getCanonical($_GET['query']);
+		   if(false !== $canonical && $canonical !== $_GET['query']){
+			  // header('Location: //'.$_SERVER['SERVER_NAME'].str_replace($_GET['query'], $canonical, $_SERVER['REQUEST_URI']));
+			  // exit;
+			   $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') ? 'https' : 'http';
+			   $url = $protocol.'://'.$_SERVER['SERVER_NAME'].str_replace($_GET['query'], $canonical, $_SERVER['REQUEST_URI']);
+	           $opts =[
+                'http'=>[
+                    'method'=>$_SERVER['REQUEST_METHOD'],
+                     //'header'=>"Accept-Encoding: deflate, gzip\r\n",
+                   ],	
+	          ];
+			    $context = stream_context_create($opts);
+			    $result = @file_get_contents($url, false, $context);
+			   if(false!==$result){	      
+				   foreach($http_response_header as $i => $header){
+                      header($header);
+                   }	
+				   echo $result;
+				   exit;
+			   }
+		   }		  
+	   } 
 	}
 
 	public function gui($id, &$out, &$handled) {
-	 
+	
 	}
 
 	public function publicSitemap(&$out) {
@@ -45,14 +61,16 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 	public function tree(&$json, $ra_email=null, $nonjs=false, $req_goto='') {
 		return false;
 	}
-	      
-	public static function getAlternatives($id) {
+
+	
+        public function readAll($noCache = false) {
+			if(true !== $noCache && null !== self::$cache){
+			   return self::$cache;	
+			}
                 $alt_ids = array();
                 $rev_lookup = array();
-			   $n = explode(':', $id, 2);
-			   
 
-                $res = OIDplus::db()->query("select * from ".OIDplus::baseConfig()->getValue('TABLENAME_PREFIX', 'oidplus_')."alt_ids where id = ? OR ( alt = ? AND ns = ?)", [$id, $n[1], $n[0]]);
+                $res = OIDplus::db()->query("select id from ###objects");
                 while ($row = $res->fetch_array()) {
                         $obj = OIDplusObject::parse($row['id']);
                         if (!$obj) continue; // e.g. if plugin is disabled
@@ -68,14 +86,31 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
                                 $rev_lookup[$alternative][] = $origin;
                         }
                 }
-                return array($alt_ids, $rev_lookup);
-        }	
-/* Nur zum Test !!! */
-       public function getAlternativesForQuery($id) {
-                list($alt_ids, $rev_lookup) = self::getAlternatives($id);
-                if (!isset($rev_lookup[$id])) return array();
-                return $rev_lookup[$id];
+              
+			self::$cache = array($alt_ids, $rev_lookup);
+			return self::$cache;
         }
+	
+	
+       public function getAlternativesForQuery($id) {		   
+             list($alt_ids, $rev_lookup) = $this->readAll(false);
+		   
+		     $res = [];
+		     if(isset($rev_lookup[$id])){
+				 $res = array_merge($res, $rev_lookup[$id]);
+			 }
+		    foreach($alt_ids as $original => $altIds){
+				if($id === $original || in_array($id, $altIds) ){
+					 $res = array_merge($res, $altIds);
+					 $res = array_merge($res, [$original]);
+				}
+			}
+		   
+		   $res = array_unique($res);
+
+           return $res;
+        }
+	
 
 	public function implementsFeature($id) {
 		if (strtolower($id) == '1.3.6.1.4.1.37476.2.5.2.3.2') return true; // modifyContent
@@ -91,7 +126,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 		$output = '';
 		$doshow = false;
     
-		$this->_handle($id);     
+ 
 		
 		if(!empty($output)){
 		   $text.=$output;	
@@ -99,33 +134,18 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 	}
   
        
-	protected function _handle($id){
-				
-		try{        
-			$this->handleAltIds($id, true);     
-		}catch(\Exception $e){       
-			throw new OIDplusException($e->getMessage());    
-		}
-		
-	}
-	protected function _del($id){
-	   $p= explode(':', $id, 2);
-		$ns = $p[0];
-		$IDX=$p[1];
-		
-	    OIDplus::db()->query("DELETE FROM ###alt_ids WHERE `id` = ? OR (`ns` = ? AND `alt_id` = ? )", [$id, $ns, $IDX]);
-		
-	}
+ 
+ 
 	
 	public function beforeObjectDelete($id) {  
 		// Interface 1.3.6.1.4.1.37476.2.5.2.3.3    
-               $this->_del($id);
+     
 		
 	} 
 	
 	public function afterObjectDelete($id) {
 		// Interface 1.3.6.1.4.1.37476.2.5.2.3.3
-		$this->_del($id);
+	 
 	}
 	public function beforeObjectUpdateSuperior($id, &$params) {} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
 	public function afterObjectUpdateSuperior($id, &$params) {
@@ -134,8 +154,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 	public function beforeObjectUpdateSelf($id, &$params) {} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
 	
 	public function afterObjectUpdateSelf($id, &$params) {
-	   $this->_del($id);	
-	   $this->_handle($id);     
+ 
 	} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
 	
 	
@@ -144,29 +163,42 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 	
 	
 	public function afterObjectInsert($id, &$params) {
-	   $this->_handle($id);     
+	    
 	} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
 	
 	
 
 	public function tree_search($request) {
+	
 		return false;
 	}
 
+	public function getCanonical($id){
+		foreach($this->getAlternativesForQuery($id) as $alt){
+			 list($ns, $altIdRaw) = explode(':', $alt, 2);
+			 if($ns === 'oid'){
+				 return $alt;
+			 }
+		}
+	
+		return false;
+	}
+	
 	public function whoisObjectAttributes($id, &$out) {
 		// Interface 1.3.6.1.4.1.37476.2.5.2.3.4
 
 		$xmlns = 'oidplus-frdlweb-altids-plugin';
 		$xmlschema = 'urn:oid:1.3.6.1.4.1.37553.8.1.8.8.53354196964.641310544.1714020422';
 		$xmlschemauri = OIDplus::webpath(__DIR__.'/altids.xsd',OIDplus::PATH_ABSOLUTE);
-
-		$info = $this->handleAltIds($id, true);
-                $handleShown = false;
+		
+        $handleShown = false;
 		$canonicalShown = false;
 		
-		foreach($info['altIds'] as $alt){
+		foreach($this->getAlternativesForQuery($id) as $alt){
 			
- 			if(false === $canonicalShown && $alt['ns'] === 'oid'){
+			 list($ns, $altIdRaw) = explode(':', $alt, 2);
+				 
+ 			if(false === $canonicalShown && $ns === 'oid'){
 			    $canonicalShown=true;
 				
 				$out[] = [				
@@ -174,12 +206,12 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 					'xmlschema' => $xmlschema,				
 					'xmlschemauri' => $xmlschemauri,				
 					'name' => 'canonical-identifier',				
-					'value' => $alt['ns'].':'.$alt['alt'],			
+					'value' => $ns.':'.$altIdRaw,			
 				];
     
 			}
      
-			if(false === $handleShown && $alt['id'] === $id){
+			if(false === $handleShown && $alt === $id){
 			    $handleShown=true;
 				
 				$out[] = [				
@@ -187,7 +219,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 					'xmlschema' => $xmlschema,				
 					'xmlschemauri' => $xmlschemauri,				
 					'name' => 'handle-identifier',				
-					'value' => $alt['id'],			
+					'value' => $alt,			
 				];
     
 			}
@@ -198,7 +230,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 				'xmlschema' => $xmlschema,
 				'xmlschemauri' => $xmlschemauri,
 				'name' => 'alternate-identifier',
-				'value' => $alt['ns'].':'.$alt['alt'],
+				'value' => $ns.':'.$altIdRaw,
 			];     
   
 		}
@@ -214,106 +246,4 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
   
 
  
-   public function getAltIdsInfo($id){
-	try{
-	   $obj = OIDplusObject::parse($id);
-	 }catch(\Exception $e){
-		$obj = false; 
-	 }
-	   
-	   if($obj !== false){
-		  $alt_ids = $obj->getAltIds();
-		  $alt=[];
-		  foreach($alt_ids as $a){
-			   $alt[] = [
-				     'id'=>$obj->nodeId(true),
-				     'alt' =>$a->getId(),
-				     'ns' => $a->getNamespace(),
-				     'description' => $a->getDescription(),
-				     
-				  ];
-		  }
-		  
-		  $res_alt_ids = [];
-		  $res_alt=[];
-			  $res = OIDplus::db()->query("select * from ".OIDplus::baseConfig()->getValue('TABLENAME_PREFIX', 'oidplus_')."alt_ids where id = ?", [$obj->nodeId(true)]);
-			
-		   while ($row = $res->fetch_array()) {
-			  $res_alt_ids[]= new OIDplusAltId($row['ns'], $row['alt'],  $row['description']);
-			  $res_alt[] = [
-				     'id' => $row['id'],
-				     'alt' => $row['alt'],
-				     'ns' => $row['ns'],
-				     'description' => $row['description'],
-				     
-				  ];
-		  }   
-		   
-		   sort($alt);
-		   sort($res_alt);
-		   
-		   $diff = array_udiff($alt, $res_alt, function($a, $b){
-			 
-			   
-			  if(//0===count(array_diff($a, $b))  &&
-				  $a['id'] === $b['id']
-				  && $a['alt'] === $b['alt']
-				  && $a['ns'] === $b['ns']
-				//  && $a['description'] === $b['description']
-				){
-				 return 0;
-			  }else if(//0 < count(array_diff($a, $b))   || 
-				$a['id'] !== $b['id']
-				  || $a['alt'] !== $b['alt']
-				  || $a['ns'] !== $b['ns']
-				 // || $a['description'] !== $b['description']
-				){ 
-				   return -1;
-			  }else{ 
-			  	return 1;  
-			  }
-		   });
-		   
- 
-	   }//obj not false
-	   
-	   sort($diff);
-	  return [
-		  'altIds' => $alt,
-		  'notInDB'=> $diff,
-		  'inDB'=> $res_alt,
-	  ];
-   }
-	
-  public function handleAltIds($id, $insertMissing = false){
-		  try{
-	             $obj = OIDplusObject::parse($id);
-	           }catch(\Exception $e){
-	                $obj = false; 
-	           }
-	 $info = (false===$obj) ? $obj : $this->getAltIdsInfo($id);
-	 if(false!==$obj && true === $insertMissing && 0<count($info['notInDB']) ){
-			 
-		// foreach(array_unique($info['notInDB']) as $num => $_inf){
-		 foreach($info['notInDB'] as $num => $_inf){
-				
-			  try{	 
-				 $res = OIDplus::db()->query("insert into ".OIDplus::baseConfig()->getValue('TABLENAME_PREFIX', 'oidplus_')."alt_ids set id = ?, alt = ?,ns = ?,description = ?, t = ?", [
-					 $obj->nodeId(true),
-					 $_inf['alt'],
-					 $_inf['ns'],
-					 $_inf['description'],	
-					 time(),
-				 ]); 
-	         
-			  }catch(\Exception $e){			
-				  throw new OIDplusException($e->getMessage());	         
-			  }
-				
-		 }
-			 $info = $this->getAltIdsInfo($id);
-	}
-     return $info;
-   } 
-	
  }
