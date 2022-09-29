@@ -24,7 +24,8 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 
 	
 	public function init($html=true) {
-       if('GET' === $_SERVER['REQUEST_METHOD'] && 'webwhois.php' === basename($_SERVER['PHP_SELF']) && isset($_GET['query'])){
+       if('GET' === $_SERVER['REQUEST_METHOD'] &&
+		  ( 'rdap.php' === basename($_SERVER['PHP_SELF']) || 'webwhois.php' === basename($_SERVER['PHP_SELF'])) && isset($_GET['query'])){
 		   $canonical = $this->getCanonical($_GET['query']);
 		   if(false !== $canonical && $canonical !== $_GET['query']){
 			  // header('Location: //'.$_SERVER['SERVER_NAME'].str_replace($_GET['query'], $canonical, $_SERVER['REQUEST_URI']));
