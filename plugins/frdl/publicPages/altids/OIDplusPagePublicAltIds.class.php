@@ -131,6 +131,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 			 list($ns, $altIdRaw) = explode(':', $alt, 2);			
 			 if($ns === 'oid'){
 				$weid=\WeidOidConverter::oid2weid($altIdRaw);
+				 break;
 			 }	   
 		   }
 
