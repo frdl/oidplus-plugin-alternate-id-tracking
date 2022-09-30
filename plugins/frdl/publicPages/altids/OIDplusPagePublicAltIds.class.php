@@ -15,14 +15,8 @@ if (!defined('INSIDE_OIDPLUS')) die();
 
 class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 
-
-	
-    protected static $cache = null;
-    protected static $caches = [];
-	
-    public static function __callStatic($name, $arguments){
-       return call_user_func_array([new self, str_replace('Static', '', $name)], $arguments);
-    }	
+	protected static $cache = null;
+	protected static $caches = [];
 	
 	public function action($actionID, $params) {
 
@@ -116,42 +110,10 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 	
 
 	public function implementsFeature($id) {
-		if (strtolower($id) == '1.3.6.1.4.1.37476.2.5.2.3.3') return true; // beforeObject*, afterObject*
 		if (strtolower($id) == '1.3.6.1.4.1.37476.2.5.2.3.4') return true; // whois*Attributes
 		if (strtolower($id) == '1.3.6.1.4.1.37476.2.5.2.3.7') return true; // getAlternativesForQuery
 		return false;
-	}
-
-	public function beforeObjectDelete($id) {  
-		// Interface 1.3.6.1.4.1.37476.2.5.2.3.3    
-     
-		
-	} 
-	
-	public function afterObjectDelete($id) {
-		// Interface 1.3.6.1.4.1.37476.2.5.2.3.3
-	 
-	}
-	public function beforeObjectUpdateSuperior($id, &$params) {} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
-	public function afterObjectUpdateSuperior($id, &$params) {
-	
-	} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
-	public function beforeObjectUpdateSelf($id, &$params) {} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
-	
-	public function afterObjectUpdateSelf($id, &$params) {
- 
-	} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
-	
-	
-	
-	public function beforeObjectInsert($id, &$params) {} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
-	
-	
-	public function afterObjectInsert($id, &$params) {
-	    
-	} // Interface 1.3.6.1.4.1.37476.2.5.2.3.3
-	
-	
+	}	
 
 	public function tree_search($request) {
 	
@@ -176,12 +138,12 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 		$xmlschema = 'urn:oid:1.3.6.1.4.1.37553.8.1.8.8.53354196964.641310544.1714020422';
 		$xmlschemauri = OIDplus::webpath(__DIR__.'/altids.xsd',OIDplus::PATH_ABSOLUTE);
 		
-        $handleShown = false;
+		$handleShown = false;
 		$canonicalShown = false;
 		
 		foreach($this->getAlternativesForQuery($id) as $alt){
 			
-			 list($ns, $altIdRaw) = explode(':', $alt, 2);
+			list($ns, $altIdRaw) = explode(':', $alt, 2);
 				 
  			if(false === $canonicalShown && $ns === 'oid'){
 			    $canonicalShown=true;
