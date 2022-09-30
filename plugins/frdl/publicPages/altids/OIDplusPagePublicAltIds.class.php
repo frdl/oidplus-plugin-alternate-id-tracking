@@ -156,30 +156,12 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic {
 	
 
 	public function implementsFeature($id) {
-		if (strtolower($id) == '1.3.6.1.4.1.37476.2.5.2.3.2') return true; // modifyContent
 		if (strtolower($id) == '1.3.6.1.4.1.37476.2.5.2.3.3') return true; // beforeObject*, afterObject*
 		if (strtolower($id) == '1.3.6.1.4.1.37476.2.5.2.3.4') return true; // whois*Attributes
 		if (strtolower($id) == '1.3.6.1.4.1.37476.2.5.2.3.7') return true; // getAlternativesForQuery
 		return false;
 	}
 
-	public function modifyContent($id, &$title, &$icon, &$text) {
-		// Interface 1.3.6.1.4.1.37476.2.5.2.3.2
-
-		$output = '';
-		$doshow = false;
-    
- 
-		
-		if(!empty($output)){
-		   $text.=$output;	
-		}
-	}
-  
-       
- 
- 
-	
 	public function beforeObjectDelete($id) {  
 		// Interface 1.3.6.1.4.1.37476.2.5.2.3.3    
      
