@@ -37,6 +37,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 
 	//+ add table altids
 	public function init(bool $html=true) {		
+		// TODO: Also support SQL Server, PgSql, Access, SQLite, Oracle
 		OIDplus::db()->query("CREATE TABLE IF NOT EXISTS ###altids (   `origin` varchar(255) NOT NULL,    `alternative` varchar(255) NOT NULL,    UNIQUE KEY (`origin`, `alternative`)   )");   
 	}	
 	
@@ -48,7 +49,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 			foreach ($ary as $a) {
 				$origin = $obj->nodeId(true);
 				$alternative = $a->getNamespace() . ':' . $a->getId();
-				$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE `origin`= ? AND `alternative`= ?",
+				$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
 											 [$origin, $alternative]);		      
 				if(!$resQ->any()){
 				  OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);	
@@ -79,7 +80,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 			$altId,
 		];
 		
-		$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE `origin`= ? OR `alternative`= ?", [$id,$id]);
+		$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? OR alternative = ?", [$id,$id]);
 		while ($row = $resQ->fetch_array()) {
 			if(!in_array($row['origin'], $res))$res[]=$row['origin'];
 			if(!in_array($row['alternative'], $res))$res[]=$row['alternative'];			
