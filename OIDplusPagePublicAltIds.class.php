@@ -53,7 +53,15 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 			foreach ($ary as $a) {
 				$origin = $obj->nodeId(true);
 				$alternative = $a->getNamespace() . ':' . $a->getId();
-				OIDplus::db()->query("REPLACE INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);	
+				$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE `origin`= ? AND `alternative`= ? LIMIT 1",
+											 [$origin, $alternative]);
+		        $found = false;
+				while ($row = $resQ->fetch_array()) {	               
+					$found = true;
+				}
+				if(false === $found){
+				  OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);	
+				}
 			}		
 	}
 	
