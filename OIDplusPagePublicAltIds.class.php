@@ -53,7 +53,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 			foreach ($ary as $a) {
 				$origin = $obj->nodeId(true);
 				$alternative = $a->getNamespace() . ':' . $a->getId();
-				OIDplus::db()->query("REPLACE INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);				
+				OIDplus::db()->query("REPLACE INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);	
 			}		
 	}
 	
@@ -67,13 +67,17 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		if (strpos($id,':') !== false) {
 			list($ns, $altIdRaw) = explode(':', $id, 2);
 			if($ns === 'weid'){
+				$altId = $id;
 				$id='oid:'.\Frdl\Weid\WeidOidConverter::weid2oid($id);
+			}elseif($ns === 'oid'){					
+				$altId=\Frdl\Weid\WeidOidConverter::oid2weid($altIdRaw);				
 			}
 		}
 
 		 $this->saveAltIdsForQuery($id);
 		$res = [
 			$id,
+			$altId,
 		];
 		
 		$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE `origin`= ? OR `alternative`= ?", [$id,$id]);
