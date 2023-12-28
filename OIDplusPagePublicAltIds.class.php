@@ -56,6 +56,24 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 				}
 			}		
 	}
+
+	/**
+	 * Acts like in_array(), but allows includes prefilterQuery, e.g. `mac:AA-BB-CC-DD-EE-FF` can be found in an array containing `mac:AABBCCDDEEFF`.
+	 * @param string $needle
+	 * @param array $haystack
+	 * @return bool
+	 */
+	private static function special_in_array(string $needle, array $haystack) {
+		$needle_prefiltered = OIDplus::prefilterQuery($needle,false);
+		foreach ($haystack as $straw) {
+			$straw_prefiltered = OIDplus::prefilterQuery($straw, false);
+			if ($needle == $straw) return true;
+			else if ($needle == $straw_prefiltered) return true;
+			else if ($needle_prefiltered == $straw) return true;
+			else if ($needle_prefiltered == $straw_prefiltered) return true;
+		}
+		return false;
+	}	
 	
 	/**
 	 * @param string $id
@@ -82,8 +100,8 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		
 		$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? OR alternative = ?", [$id,$id]);
 		while ($row = $resQ->fetch_array()) {
-			if(!in_array($row['origin'], $res))$res[]=$row['origin'];
-			if(!in_array($row['alternative'], $res))$res[]=$row['alternative'];			
+			if(!self::special_in_array($row['origin'], $res))$res[]=$row['origin'];
+			if(!self::special_in_array($row['alternative'], $res))$res[]=$row['alternative'];			
 		}
 		return $res;
 	}
