@@ -36,13 +36,8 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	//}
 
 	//+ add table altids
-	public function init(bool $html=true) {
-		 OIDplus::db()->query("CREATE TABLE IF NOT EXISTS ###altids (
-   `origin` varchar(255) NOT NULL, 
-   `alternative` varchar(255) NOT NULL, 
-   UNIQUE KEY (`origin`, `alternative`)
-   )");
-   
+	public function init(bool $html=true) {		
+		OIDplus::db()->query("CREATE TABLE IF NOT EXISTS ###altids (   `origin` varchar(255) NOT NULL,    `alternative` varchar(255) NOT NULL,    UNIQUE KEY (`origin`, `alternative`)   )");   
 	}	
 	
 		
@@ -54,8 +49,8 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 				$origin = $obj->nodeId(true);
 				$alternative = $a->getNamespace() . ':' . $a->getId();
 				$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE `origin`= ? AND `alternative`= ? LIMIT 1",
-											 [$origin, $alternative]);
-		        $found = false;
+											 [$origin, $alternative]);		      
+				$found = false;
 				while ($row = $resQ->fetch_array()) {	               
 					$found = true;
 				}
