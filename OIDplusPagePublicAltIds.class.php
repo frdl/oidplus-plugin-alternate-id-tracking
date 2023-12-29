@@ -21,7 +21,7 @@ use ViaThinkSoft\OIDplus\OIDplusPagePluginPublic;
 
 class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	implements INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_4, /* whois*Attributes */
-	           INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7  /* getAlternativesForQuery */
+	INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7  /* getAlternativesForQuery */
 {
 
 	/**
@@ -36,25 +36,32 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	//}
 
 	//+ add table altids
-	public function init(bool $html=true) {		
+	public function init(bool $html=true) {
 		// TODO: Also support SQL Server, PgSql, Access, SQLite, Oracle
-		OIDplus::db()->query("CREATE TABLE IF NOT EXISTS ###altids (   `origin` varchar(255) NOT NULL,    `alternative` varchar(255) NOT NULL,    UNIQUE KEY (`origin`, `alternative`)   )");   
-	}	
-	
-		
+		if (!OIDplus::db()->tableExists("###altids")) {
+			OIDplus::db()->query("CREATE TABLE ###altids (   `origin` varchar(255) NOT NULL,    `alternative` varchar(255) NOT NULL,    UNIQUE KEY (`origin`, `alternative`)   )");
+		}
+
+		// Whenever a user visits a page, we need to update our cache, so that reverse-lookups are possible later
+		// TODO! Dirty hack. We need a cleaner solution...
+		if (isset($_REQUEST['goto'])) $this->saveAltIdsForQuery($_REQUEST['goto']);
+		if (isset($_REQUEST['id'])) $this->saveAltIdsForQuery($_REQUEST['id']);
+	}
+
+
 	protected function saveAltIdsForQuery(string $id){
-			$obj = OIDplusObject::parse($id);
-			if (!$obj) return; // e.g. if plugin is disabled
-			$ary = $obj->getAltIds();	
-			foreach ($ary as $a) {
-				$origin = $obj->nodeId(true);
-				$alternative = $a->getNamespace() . ':' . $a->getId();
-				$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
-											 [$origin, $alternative]);		      
-				if(!$resQ->any()){
-				  OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);	
-				}
-			}		
+		$obj = OIDplusObject::parse($id);
+		if (!$obj) return; // e.g. if plugin is disabled
+		$ary = $obj->getAltIds();
+		foreach ($ary as $a) {
+			$origin = $obj->nodeId(true);
+			$alternative = $a->getNamespace() . ':' . $a->getId();
+			$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
+				[$origin, $alternative]);
+			if(!$resQ->any()){
+				OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);
+			}
+		}
 	}
 
 	/**
@@ -73,41 +80,38 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 			else if ($needle_prefiltered == $straw_prefiltered) return true;
 		}
 		return false;
-	}	
-	
+	}
+
 	/**
 	 * @param string $id
 	 * @return string[]
 	 * @throws \ViaThinkSoft\OIDplus\OIDplusException
 	 */
 	public function getAlternativesForQuery(string $id/* INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7 signature takes just 1 param!? , $noCache = false*/): array {
+		$res = [ $id ];
 
-		if (strpos($id,':') !== false) {
-			list($ns, $altIdRaw) = explode(':', $id, 2);
-			if($ns === 'weid'){
-				$altId = $id;
-				$id='oid:'.\Frdl\Weid\WeidOidConverter::weid2oid($id);
-			}elseif($ns === 'oid'){					
-				$altId=\Frdl\Weid\WeidOidConverter::oid2weid($altIdRaw);				
+		// Consider the following testcase:
+		// "oid:1.3.6.1.4.1.37553.8.8.2" defines alt ID "mac:63-CF-E4-AE-C5-66" which is NOT canonized!
+		// You must be able to enter "mac:63-CF-E4-AE-C5-66" in the search box, which gets canonized
+		// to mac:63CFE4AEC566 and must be solved to "oid:1.3.6.1.4.1.37553.8.8.2" by this plugin.
+		// Therefore we use self::special_in_array().
+		// However, it is mandatory, that previously saveAltIdsForQuery("oid:1.3.6.1.4.1.37553.8.8.2") was called once!
+		// Please also note that the "weid:" to "oid:" converting is handled by prefilterQuery(), but only if the OID plugin is installed.
+
+		$resQ = OIDplus::db()->query("select origin, alternative from ###altids");
+		while ($row = $resQ->fetch_array()) {
+			$test = [ $row['origin'], $row['alternative'] ];
+			if (self::special_in_array($id, $test)) {
+				$res[] = $row['origin'];
+				$res[] = $row['alternative'];
 			}
 		}
 
-		 $this->saveAltIdsForQuery($id);
-		$res = [
-			$id,
-			$altId,
-		];
-		
-		$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? OR alternative = ?", [$id,$id]);
-		while ($row = $resQ->fetch_array()) {
-			if(!self::special_in_array($row['origin'], $res))$res[]=$row['origin'];
-			if(!self::special_in_array($row['alternative'], $res))$res[]=$row['alternative'];			
-		}
-		return $res;
+		return array_unique($res);
 	}
-	
-	
-	
+
+
+
 	/**
 	 * @param string $id
 	 * @param array $out
@@ -190,7 +194,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 
 			list($ns, $altIdRaw) = explode(':', $alt, 2);
 
- 			if (($canonicalShown === false) && ($ns === 'oid')) {
+			if (($canonicalShown === false) && ($ns === 'oid')) {
 				$canonicalShown=true;
 
 				$out1[] = [
@@ -244,4 +248,4 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 
 	}
 
- }
+}
