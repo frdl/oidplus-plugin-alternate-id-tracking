@@ -149,7 +149,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		];
 
 		// This would be like the OLD readAll approach: $resQ = OIDplus::db()->query("select origin, alternative from ###altids"); !?!
-		$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE `origin`= ? OR `alternative`= ?", [$id,$id]);
+		$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE `origin`= ? OR `alternative`= ? OR  `origin`= ? OR `alternative`= ?", [$id,$id,$altId,$altId]);
 		while ($row = $resQ->fetch_array()) {
 			if(!in_array($row['origin'], $res))$res[]=$row['origin'];
 			if(!in_array($row['alternative'], $res))$res[]=$row['alternative'];			
