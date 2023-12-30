@@ -48,113 +48,91 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		if (isset($_REQUEST['id'])) $this->saveAltIdsForQuery($_REQUEST['id']);
 	}
 
+	// TODO: call this via cronjob
+	public function renewAll() {
+		OIDplus::db()->query("delete from ###altids");
+		$resQ = OIDplus::db()->query("select * from ###objects");
+		while ($row = $resQ->fetch_array()) {
+			$this->saveAltIdsForQuery($row['id']);
+		}
+	}
 
 	protected function saveAltIdsForQuery(string $id){
+
+		// Why prefiltering? Consider the following testcase:
+		// "oid:1.3.6.1.4.1.37553.8.8.2" defines alt ID "mac:63-CF-E4-AE-C5-66" which is NOT canonized (otherwise it would not look good)!
+		// You must be able to enter "mac:63-CF-E4-AE-C5-66" in the search box, which gets canonized
+		// to mac:63CFE4AEC566 and must be resolved to "oid:1.3.6.1.4.1.37553.8.8.2" by this plugin.
+		// Therefore we use self::special_in_array().
+		// However, it is mandatory, that previously saveAltIdsForQuery("oid:1.3.6.1.4.1.37553.8.8.2") was called once!
+		// Please also note that the "weid:" to "oid:" converting is handled by prefilterQuery(), but only if the OID plugin is installed.
+
 		$obj = OIDplusObject::parse($id);
 		if (!$obj) return; // e.g. if plugin is disabled
 		$ary = $obj->getAltIds();
 		$origin = $obj->nodeId(true);
-			$straw_prefiltered = OIDplus::prefilterQuery($origin, false);
-			if($straw_prefiltered !== $origin){
-			    $resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
-				[$origin, $straw_prefiltered]);
-			       if(!$resQ->any()){
-				   OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $straw_prefiltered]);
-			       }                           
-			}		
+		$origin_prefiltered = OIDplus::prefilterQuery($origin, false);
+		if($origin_prefiltered !== $origin){
+			$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
+				[$origin, $origin_prefiltered]);
+			if(!$resQ->any()){
+				OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $origin_prefiltered]);
+			}
+		}
 		foreach ($ary as $a) {
-			// why in every iteration? $origin = $obj->nodeId(true);
 			$alternative = $a->getNamespace() . ':' . $a->getId();
 			$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
 				[$origin, $alternative]);
 			if(!$resQ->any()){
 				OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);
 			}
-			
-			$straw_prefiltered = OIDplus::prefilterQuery($alternative, false);
-			if($straw_prefiltered !== $alternative){
-			    $resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
-				[$origin, $straw_prefiltered]);
-			       if(!$resQ->any()){
-				   OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $straw_prefiltered]);
-			       }                           
+
+			$alternative_prefiltered = OIDplus::prefilterQuery($alternative, false);
+			if($alternative_prefiltered !== $alternative){
+				$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
+					[$origin, $alternative_prefiltered]);
+				if(!$resQ->any()){
+					OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative_prefiltered]);
+				}
 			}
 		}
 	}
 
-	/**
-	 * Acts like in_array(), but allows includes prefilterQuery, e.g. `mac:AA-BB-CC-DD-EE-FF` can be found in an array containing `mac:AABBCCDDEEFF`.
-	 * @param string $needle
-	 * @param array $haystack
-	 * @return bool
-	 */
-	private static function special_in_array(string $needle, array $haystack) {
-		$needle_prefiltered = OIDplus::prefilterQuery($needle,false);
-		foreach ($haystack as $straw) {
-			$straw_prefiltered = OIDplus::prefilterQuery($straw, false);
-			if ($needle == $straw) return true;
-			else if ($needle == $straw_prefiltered) return true;
-			else if ($needle_prefiltered == $straw) return true;
-			else if ($needle_prefiltered == $straw_prefiltered) return true;
-		}
-		return false;
-	}
-
-	/**
-	 * @param string $id
-	 * @return string[]
-	 * @throws \ViaThinkSoft\OIDplus\OIDplusException
-	// I do not get this? Similar to versions before (readAll) and why !in_array but if in special_in_array?
-        //  mac:63CFE4AEC566 and must be solved to "oid:1.3.6.1.4.1.37553.8.8.2":
-	//  -> moved to "where  if we save entries" NOT read all!?!
-	public function getAlternativesForQuery(string $id ): array {
-		$res = [ $id ];
-
-		// Consider the following testcase:
-		// "oid:1.3.6.1.4.1.37553.8.8.2" defines alt ID "mac:63-CF-E4-AE-C5-66" which is NOT canonized!
-		// You must be able to enter "mac:63-CF-E4-AE-C5-66" in the search box, which gets canonized
-		// to mac:63CFE4AEC566 and must be solved to "oid:1.3.6.1.4.1.37553.8.8.2" by this plugin.
-		// Therefore we use self::special_in_array().
-		// However, it is mandatory, that previously saveAltIdsForQuery("oid:1.3.6.1.4.1.37553.8.8.2") was called once!
-		// Please also note that the "weid:" to "oid:" converting is handled by prefilterQuery(), but only if the OID plugin is installed.
-
-		$resQ = OIDplus::db()->query("select origin, alternative from ###altids");
-		while ($row = $resQ->fetch_array()) {
-			$test = [ $row['origin'], $row['alternative'] ];
-			if (self::special_in_array($id, $test)) {
-				$res[] = $row['origin'];
-				$res[] = $row['alternative'];
-			}
-		}
-
-		return array_unique($res);
-	}
- */
 	public function getAlternativesForQuery(string $id/* INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7 signature takes just 1 param!? , $noCache = false*/): array {
 
+		// DM 30.12.2023 : Why handle "weid:" here? It is handled by prefilterQuery(), if OID plugin is installed
+		/*
 		if (strpos($id,':') !== false) {
 			list($ns, $altIdRaw) = explode(':', $id, 2);
 			if($ns === 'weid'){
 				$altId = $id;
 				$id='oid:'.\Frdl\Weid\WeidOidConverter::weid2oid($id);
-			}elseif($ns === 'oid'){					
-				$altId=\Frdl\Weid\WeidOidConverter::oid2weid($altIdRaw);				
+			}elseif($ns === 'oid'){
+				$altId=\Frdl\Weid\WeidOidConverter::oid2weid($altIdRaw);
 			}
 		}
 
-		 $this->saveAltIdsForQuery($id);
+		$this->saveAltIdsForQuery($id);
 		$res = [
 			$id,
-			$altId,
+			$altId,  // <-- not always defined!
+		];
+		*/
+
+		$id_prefiltered = OIDplus::prefilterQuery($id, false);
+
+		$res = [
+			$id,
+			$id_prefiltered
 		];
 
-		// This would be like the OLD readAll approach: $resQ = OIDplus::db()->query("select origin, alternative from ###altids"); !?!
-		$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE `origin`= ? OR `alternative`= ? OR  `origin`= ? OR `alternative`= ?", [$id,$id,$altId,$altId]);
+		$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? OR alternative = ? OR origin = ? OR alternative = ?", [$res[0],$res[0],$res[1],$res[1]]);
 		while ($row = $resQ->fetch_array()) {
 			if(!in_array($row['origin'], $res))$res[]=$row['origin'];
-			if(!in_array($row['alternative'], $res))$res[]=$row['alternative'];			
+			if(!in_array($row['alternative'], $res))$res[]=$row['alternative'];
 		}
-		return $res;
+
+		return array_unique($res);
 	}
 
 	/**
