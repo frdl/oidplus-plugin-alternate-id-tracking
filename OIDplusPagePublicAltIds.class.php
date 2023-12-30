@@ -53,13 +53,31 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		$obj = OIDplusObject::parse($id);
 		if (!$obj) return; // e.g. if plugin is disabled
 		$ary = $obj->getAltIds();
+		$origin = $obj->nodeId(true);
+			$straw_prefiltered = OIDplus::prefilterQuery($origin, false);
+			if($straw_prefiltered !== $origin){
+			    $resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
+				[$origin, $straw_prefiltered]);
+			       if(!$resQ->any()){
+				   OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $straw_prefiltered]);
+			       }                           
+			}		
 		foreach ($ary as $a) {
-			$origin = $obj->nodeId(true);
+			// why in every iteration? $origin = $obj->nodeId(true);
 			$alternative = $a->getNamespace() . ':' . $a->getId();
 			$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
 				[$origin, $alternative]);
 			if(!$resQ->any()){
 				OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);
+			}
+			
+			$straw_prefiltered = OIDplus::prefilterQuery($alternative, false);
+			if($straw_prefiltered !== $alternative){
+			    $resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
+				[$origin, $straw_prefiltered]);
+			       if(!$resQ->any()){
+				   OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $straw_prefiltered]);
+			       }                           
 			}
 		}
 	}
@@ -86,8 +104,10 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @param string $id
 	 * @return string[]
 	 * @throws \ViaThinkSoft\OIDplus\OIDplusException
-	 */
-	public function getAlternativesForQuery(string $id/* INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7 signature takes just 1 param!? , $noCache = false*/): array {
+	// I do not get this? Similar to versions before (readAll) and why !in_array but if in special_in_array?
+        //  mac:63CFE4AEC566 and must be solved to "oid:1.3.6.1.4.1.37553.8.8.2":
+	//  -> moved to "where  if we save entries" NOT read all!?!
+	public function getAlternativesForQuery(string $id ): array {
 		$res = [ $id ];
 
 		// Consider the following testcase:
@@ -109,8 +129,33 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 
 		return array_unique($res);
 	}
+ */
+	public function getAlternativesForQuery(string $id/* INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7 signature takes just 1 param!? , $noCache = false*/): array {
 
+		if (strpos($id,':') !== false) {
+			list($ns, $altIdRaw) = explode(':', $id, 2);
+			if($ns === 'weid'){
+				$altId = $id;
+				$id='oid:'.\Frdl\Weid\WeidOidConverter::weid2oid($id);
+			}elseif($ns === 'oid'){					
+				$altId=\Frdl\Weid\WeidOidConverter::oid2weid($altIdRaw);				
+			}
+		}
 
+		 $this->saveAltIdsForQuery($id);
+		$res = [
+			$id,
+			$altId,
+		];
+
+		// This would be like the OLD readAll approach: $resQ = OIDplus::db()->query("select origin, alternative from ###altids"); !?!
+		$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE `origin`= ? OR `alternative`= ?", [$id,$id]);
+		while ($row = $resQ->fetch_array()) {
+			if(!in_array($row['origin'], $res))$res[]=$row['origin'];
+			if(!in_array($row['alternative'], $res))$res[]=$row['alternative'];			
+		}
+		return $res;
+	}
 
 	/**
 	 * @param string $id
