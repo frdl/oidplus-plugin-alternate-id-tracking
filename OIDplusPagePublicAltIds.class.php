@@ -317,7 +317,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * Implements interface INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_8
 	 * @param string|null $user
 	 * @return array
-	 * @throws OIDplusException
+	 * @throws \ViaThinkSoft\OIDplus\OIDplusException
 	 */
 	public function getNotifications(string $user=null): array {
 		$notifications = array();
