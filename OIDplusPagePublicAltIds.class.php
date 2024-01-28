@@ -15,6 +15,7 @@ use ViaThinkSoft\OIDplus\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_8;
 use ViaThinkSoft\OIDplus\OIDplus;
 use ViaThinkSoft\OIDplus\OIDplusObject;
 use ViaThinkSoft\OIDplus\OIDplusPagePluginPublic;
+use ViaThinkSoft\OIDplus\OIDplusNotification;
 
 // phpcs:disable PSR1.Files.SideEffects
 \defined('INSIDE_OIDPLUS') or die;
