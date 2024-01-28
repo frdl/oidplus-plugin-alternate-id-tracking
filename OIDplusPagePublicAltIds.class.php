@@ -11,6 +11,7 @@ namespace Frdlweb\OIDplus;
 
 use ViaThinkSoft\OIDplus\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_4;
 use ViaThinkSoft\OIDplus\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7;
+use ViaThinkSoft\OIDplus\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_8;
 use ViaThinkSoft\OIDplus\OIDplus;
 use ViaThinkSoft\OIDplus\OIDplusObject;
 use ViaThinkSoft\OIDplus\OIDplusPagePluginPublic;
@@ -21,7 +22,8 @@ use ViaThinkSoft\OIDplus\OIDplusPagePluginPublic;
 
 class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	implements INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_4, /* whois*Attributes */
-	INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7  /* getAlternativesForQuery */
+	INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7,  /* getAlternativesForQuery */
+	INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_8  /* getNotifications */
 {
 
 	/**
@@ -35,11 +37,37 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	//	return parent::action($actionID, $params);
 	//}
 
+	private $db_table_exists;
+
 	//+ add table altids
 	public function init(bool $html=true) {
 		// TODO: Also support SQL Server, PgSql, Access, SQLite, Oracle
 		if (!OIDplus::db()->tableExists("###altids")) {
-			OIDplus::db()->query("CREATE TABLE ###altids (   `origin` varchar(255) NOT NULL,    `alternative` varchar(255) NOT NULL,    UNIQUE KEY (`origin`, `alternative`)   )");
+			if ($db->getSlang()->id() == 'mysql') {
+				OIDplus::db()->query("CREATE TABLE ###altids (   `origin` varchar(255) NOT NULL,    `alternative` varchar(255) NOT NULL,    UNIQUE KEY (`origin`, `alternative`)   )");
+				$this->db_table_exists = true;
+			} else if ($db->getSlang()->id() == 'mssql') {
+				// TODO: Implement Table Creation for this DBMS
+				$this->db_table_exists = false;
+			} else if ($db->getSlang()->id() == 'oracle') {
+				// TODO: Implement Table Creation for this DBMS
+				$this->db_table_exists = false;
+			} else if ($db->getSlang()->id() == 'pgsql') {
+				// TODO: Implement Table Creation for this DBMS
+				$this->db_table_exists = false;
+			} else if ($db->getSlang()->id() == 'access') {
+				// TODO: Implement Table Creation for this DBMS
+				$this->db_table_exists = false;
+			} else if ($db->getSlang()->id() == 'sqlite') {
+				// TODO: Implement Table Creation for this DBMS
+				$this->db_table_exists = false;
+			} else if ($db->getSlang()->id() == 'firebird') {
+				// TODO: Implement Table Creation for this DBMS
+				$this->db_table_exists = false;
+			} else {
+				// DBMS not supported
+				$this->db_table_exists = false;
+			}
 		}
 
 		// Whenever a user visits a page, we need to update our cache, so that reverse-lookups are possible later
@@ -50,6 +78,8 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 
 	// TODO: call this via cronjob
 	public function renewAll() {
+		if (!$this->db_table_exists) return;
+		
 		OIDplus::db()->query("delete from ###altids");
 		$resQ = OIDplus::db()->query("select * from ###objects");
 		while ($row = $resQ->fetch_array()) {
@@ -58,6 +88,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	}
 
 	protected function saveAltIdsForQuery(string $id){
+		if (!$this->db_table_exists) return;
 
 		// Why prefiltering? Consider the following testcase:
 		// "oid:1.3.6.1.4.1.37553.8.8.2" defines alt ID "mac:63-CF-E4-AE-C5-66" which is NOT canonized (otherwise it would not look good)!
@@ -99,6 +130,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	}
 
 	public function getAlternativesForQuery(string $id/* INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7 signature takes just 1 param!? , $noCache = false*/): array {
+		if (!$this->db_table_exists) return [];
 
 		// DM 30.12.2023 : Why handle "weid:" here? It is handled by prefilterQuery(), if OID plugin is installed
 		/*
@@ -269,6 +301,23 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 */
 	public function whoisRaAttributes(string $email, array &$out) {
 
+	}
+
+	/**
+	 * Implements interface INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_8
+	 * @param string|null $user
+	 * @return array
+	 * @throws OIDplusException
+	 */
+	public function getNotifications(string $user=null): array {
+		$notifications = array();
+		if ((!$user || ($user == 'admin')) && OIDplus::authUtils()->isAdminLoggedIn()) {
+			if (!$this->db_table_exists) {
+				$title = _L('Alt ID Plugin');
+				$notifications[] = new OIDplusNotification('ERR', _L('OIDplus plugin "%1" is enabled, but it does not know how to create its database tables to this DBMS. Therefore the plugin does not work.', htmlentities($title)));
+			}
+		}
+		return $notifications;
 	}
 
 }
