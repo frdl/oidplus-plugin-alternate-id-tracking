@@ -2,7 +2,7 @@
 
 /*
  * OIDplus 2.0
- * Copyright 2022 - 2023 Daniel Marschall, ViaThinkSoft / Till Wehowski, Frdlweb
+ * Copyright 2022 - 2024 Daniel Marschall, ViaThinkSoft / Till Wehowski, Frdlweb
  *
  * Licensed under the MIT License.
  */
@@ -44,25 +44,25 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	public function init(bool $html=true) {
 		// TODO: Also support SQL Server, PgSql, Access, SQLite, Oracle
 		if (!OIDplus::db()->tableExists("###altids")) {
-			if ($db->getSlang()->id() == 'mysql') {
+			if (OIDplus::db()->getSlang()->id() == 'mysql') {
 				OIDplus::db()->query("CREATE TABLE ###altids (   `origin` varchar(255) NOT NULL,    `alternative` varchar(255) NOT NULL,    UNIQUE KEY (`origin`, `alternative`)   )");
 				$this->db_table_exists = true;
-			} else if ($db->getSlang()->id() == 'mssql') {
+			} else if (OIDplus::db()->getSlang()->id() == 'mssql') {
 				// TODO: Implement Table Creation for this DBMS
 				$this->db_table_exists = false;
-			} else if ($db->getSlang()->id() == 'oracle') {
+			} else if (OIDplus::db()->getSlang()->id() == 'oracle') {
 				// TODO: Implement Table Creation for this DBMS
 				$this->db_table_exists = false;
-			} else if ($db->getSlang()->id() == 'pgsql') {
+			} else if (OIDplus::db()->getSlang()->id() == 'pgsql') {
 				// TODO: Implement Table Creation for this DBMS
 				$this->db_table_exists = false;
-			} else if ($db->getSlang()->id() == 'access') {
+			} else if (OIDplus::db()->getSlang()->id() == 'access') {
 				// TODO: Implement Table Creation for this DBMS
 				$this->db_table_exists = false;
-			} else if ($db->getSlang()->id() == 'sqlite') {
+			} else if (OIDplus::db()->getSlang()->id() == 'sqlite') {
 				// TODO: Implement Table Creation for this DBMS
 				$this->db_table_exists = false;
-			} else if ($db->getSlang()->id() == 'firebird') {
+			} else if (OIDplus::db()->getSlang()->id() == 'firebird') {
 				// TODO: Implement Table Creation for this DBMS
 				$this->db_table_exists = false;
 			} else {
@@ -245,7 +245,14 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		$out1 = array();
 		$out2 = array();
 
-		$tmp = $this->getAlternativesForQuery($id);
+		// DM 28.01.2024 Fix that OID-IP output shows both prefiltered and nonfiltered identifiers
+		//$tmp = $this->getAlternativesForQuery($id);
+		$obj = OIDplusObject::parse($id);
+		$tmp = [];
+		foreach ($obj->getAltIds() as $altId) {
+			$tmp[] = $altId->getNamespace().':'.$altId->getId();
+		}
+
 		sort($tmp); // DM 26.03.2023 : Added sorting (intended to sort "alternate-identifier")
 		foreach($tmp as $alt) {
 			if (strpos($alt,':') === false) continue;
