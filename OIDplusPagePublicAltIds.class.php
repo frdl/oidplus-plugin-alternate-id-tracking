@@ -68,6 +68,8 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 				// DBMS not supported
 				$this->db_table_exists = false;
 			}
+		} else {
+			$this->db_table_exists = true;
 		}
 
 		// Whenever a user visits a page, we need to update our cache, so that reverse-lookups are possible later
