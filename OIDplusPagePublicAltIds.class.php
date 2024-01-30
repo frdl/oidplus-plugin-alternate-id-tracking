@@ -113,6 +113,26 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 				OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $origin_prefiltered]);
 			}
 		}
+		    $altId = false;
+			list($ns, $altIdRaw) = explode(':', $origin, 2);
+			if($ns === 'weid'){
+				$altId='oid:'.\Frdl\Weid\WeidOidConverter::weid2oid($altIdRaw);
+			}elseif($ns === 'oid'){
+				$altId=\Frdl\Weid\WeidOidConverter::oid2weid($altIdRaw);
+			}	
+		
+			 
+		    if($altId){
+		    	$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
+				   [$origin, $altId]);
+			   if(!$resQ->any()){
+				  OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $altId]);	
+				   // This is "triggered" correctly BUT the engtries are not shown on the page RDAP, although they are in the database!?
+				///die($origin.$altId);			  
+			    }	 
+			}
+			
+		
 		foreach ($ary as $a) {
 			$alternative = $a->getNamespace() . ':' . $a->getId();
 			$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
@@ -120,7 +140,8 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 			if(!$resQ->any()){
 				OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);
 			}
-
+	
+			
 			$alternative_prefiltered = OIDplus::prefilterQuery($alternative, false);
 			if($alternative_prefiltered !== $alternative){
 				$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
@@ -136,7 +157,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		if (!$this->db_table_exists) return [];
 
 		// DM 30.12.2023 : Why handle "weid:" here? It is handled by prefilterQuery(), if OID plugin is installed
-		/*
+/*		
 		if (strpos($id,':') !== false) {
 			list($ns, $altIdRaw) = explode(':', $id, 2);
 			if($ns === 'weid'){
@@ -152,21 +173,52 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 			$id,
 			$altId,  // <-- not always defined!
 		];
+	 
 		*/
 
+		
+	    
 		$id_prefiltered = OIDplus::prefilterQuery($id, false);
-
+	  //  $this->saveAltIdsForQuery($id_prefiltered);
+		
 		$res = [
 			$id,
-			$id_prefiltered
+			$id_prefiltered,
+		//	$altId,
 		];
 
 		$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? OR alternative = ? OR origin = ? OR alternative = ?", [$res[0],$res[0],$res[1],$res[1]]);
-		while ($row = $resQ->fetch_array()) {
-			if(!in_array($row['origin'], $res))$res[]=$row['origin'];
-			if(!in_array($row['alternative'], $res))$res[]=$row['alternative'];
+		while ($row = $resQ->fetch_array()) { 
+			if(!in_array($row['origin'], $res)){
+			//	$res = array_merge($res,  $this->getAlternativesForQuery( $row['origin']) );
+			//	$this->saveAltIdsForQuery($row['origin']);
+				$altId = false;		
+				if (strpos($row['origin'],':') !== false) {
+			      list($ns, $altIdRaw) = explode(':', $row['origin'], 2);
+		          if($ns === 'oid'){
+			    	$altId=\Frdl\Weid\WeidOidConverter::oid2weid($altIdRaw);
+			      }elseif($ns === 'weid'){
+			         	$altId=\Frdl\Weid\WeidOidConverter::weid2oid($altIdRaw);
+		       	  }
+					if($altId && !in_array($altId, $res)){				
+						$res[]=$altId;	
+					//	die($altId.$row['origin']);
+			      // 	$this->saveAltIdsForQuery($altId);
+					} 
+		       }
+				
+				
+				$res[]=$row['origin'];
+			}
+			if(!in_array($row['alternative'], $res)){
+				//$this->saveAltIdsForQuery($row['alternative']);
+				//$res = array_merge($res,  $this->getAlternativesForQuery( $row['alternative']) );
+				$res[]=$row['alternative'];
+			}
+			
 		}
-
+//// This is "triggered" correctly BUT the engtries are not shown on the page RDAP, although they are in the database!?
+			//	 		print_r($res);
 		return array_unique($res);
 	}
 
@@ -177,7 +229,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @return void
 	 */
 	public function gui(string $id, array &$out, bool &$handled) {
-
+       // $this->saveAltIdsForQuery($id);
 	}
 
 	/**
@@ -215,6 +267,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @throws \ViaThinkSoft\OIDplus\OIDplusException
 	 */
 	public function getCanonical(string $id){
+	//	$this->saveAltIdsForQuery($id);
 		foreach($this->getAlternativesForQuery($id) as $alt){
 			if (strpos($alt,':') !== false) {
 				list($ns, $altIdRaw) = explode(':', $alt, 2);
