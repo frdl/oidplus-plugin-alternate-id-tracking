@@ -245,7 +245,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		//$tmp = $this->getAlternativesForQuery($id);
 		$obj = OIDplusObject::parse($id);
 		$tmp = [
-			$obj->nodeId(true),
+			$this->getCanonical($id),
 		];
 		foreach ($obj->getAltIds() as $altId) {
 			$tmp[] = $altId->getNamespace().':'.$altId->getId();
