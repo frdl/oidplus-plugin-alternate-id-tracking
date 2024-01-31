@@ -244,7 +244,9 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		// DM 28.01.2024 Fix that OID-IP output shows both prefiltered and nonfiltered identifiers
 		//$tmp = $this->getAlternativesForQuery($id);
 		$obj = OIDplusObject::parse($id);
-		$tmp = [];
+		$tmp = [
+			$id,
+		];
 		foreach ($obj->getAltIds() as $altId) {
 			$tmp[] = $altId->getNamespace().':'.$altId->getId();
 		}
