@@ -128,7 +128,11 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 				OIDplus::db()->query("CREATE TABLE ###altids ( `origin` varchar(255) NOT NULL, `alternative` varchar(255) NOT NULL, UNIQUE KEY (`origin`, `alternative`)   )");
 				$this->db_table_exists = true;
 			} else if (OIDplus::db()->getSlang()->id() == 'mssql') {
-				OIDplus::db()->query("CREATE TABLE ###altids ( [origin] varchar(255) NOT NULL, [alternative] varchar(255) NOT NULL, CONSTRAINT [PK_###altids] PRIMARY KEY CLUSTERED( [origin] ASC, [alternative] ASC ) )");
+				// We use nvarchar(225) instead of varchar(255), see https://github.com/frdl/oidplus-plugin-alternate-id-tracking/issues/18
+				// Unfortunately, we cannot use nvarchar(255), because we need to of them for the primary key, and an index must not be greater than 900 bytes.
+				// Therefore we can only use 225 bytes, not 255 bytes.
+				// It is very unlikely that someone has such giant identifiers. But if they do, then saveAltIdsForQuery() will reject the INSERT commands
+				OIDplus::db()->query("CREATE TABLE ###altids ( [origin] nvarchar(225) NOT NULL, [alternative] nvarchar(225) NOT NULL, CONSTRAINT [PK_###altids] PRIMARY KEY CLUSTERED( [origin] ASC, [alternative] ASC ) )");
 				$this->db_table_exists = true;
 			} else if (OIDplus::db()->getSlang()->id() == 'oracle') {
 				// TODO: Implement Table Creation for this DBMS (see CREATE TABLE syntax at plugins/viathinksoft/sqlSlang/oracle/sql/*.sql)
@@ -188,28 +192,48 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		$origin = $obj->nodeId(true);
 		$origin_prefiltered = OIDplus::prefilterQuery($origin, false);
 		if($origin_prefiltered !== $origin){
-			$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
-				[$origin, $origin_prefiltered]);
-			if(!$resQ->any()){
-				OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $origin_prefiltered]);
+			$ok = true;
+			if (OIDplus::db()->getSlang()->id() == 'mssql') {
+				// Explanation: See comment in the init() method.
+				if ((strlen($origin) > 225) || (strlen($origin_prefiltered) > 225)) $ok = false;
+			}
+			if ($ok) {
+				$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
+					[$origin, $origin_prefiltered]);
+				if (!$resQ->any()) {
+					OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $origin_prefiltered]);
+				}
 			}
 		}
 
 		foreach ($ary as $a) {
 			$alternative = $a->getNamespace() . ':' . $a->getId();
-			$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
-				[$origin, $alternative]);
-			if(!$resQ->any()){
-				OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);
+			$ok = true;
+			if (OIDplus::db()->getSlang()->id() == 'mssql') {
+				// Explanation: See comment in the init() method.
+				if ((strlen($origin) > 225) || (strlen($alternative) > 225)) $ok = false;
 			}
-
+			if ($ok) {
+				$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
+					[$origin, $alternative]);
+				if (!$resQ->any()) {
+					OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);
+				}
+			}
 
 			$alternative_prefiltered = OIDplus::prefilterQuery($alternative, false);
 			if($alternative_prefiltered !== $alternative){
-				$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
-					[$origin, $alternative_prefiltered]);
-				if(!$resQ->any()){
-					OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative_prefiltered]);
+				$ok = true;
+				if (OIDplus::db()->getSlang()->id() == 'mssql') {
+					// Explanation: See comment in the init() method.
+					if ((strlen($origin) > 225) || (strlen($alternative_prefiltered) > 225)) $ok = false;
+				}
+				if ($ok) {
+					$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
+						[$origin, $alternative_prefiltered]);
+					if (!$resQ->any()) {
+						OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative_prefiltered]);
+					}
 				}
 			}
 		}
