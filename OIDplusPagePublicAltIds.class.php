@@ -75,14 +75,15 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 
 		// Whenever a user visits a page, we need to update our cache, so that reverse-lookups are possible later
 		// TODO! Dirty hack. We need a cleaner solution...
-		if (isset($_REQUEST['goto'])) $this->saveAltIdsForQuery($_REQUEST['goto']);
-		if (isset($_REQUEST['id'])) $this->saveAltIdsForQuery($_REQUEST['id']);
-	}
+		if (isset($_REQUEST['goto'])) $this->saveAltIdsForQuery($_REQUEST['goto']); // => solve using implementing gui()?
+		if (isset($_REQUEST['query'])) $this->saveAltIdsForQuery($_REQUEST['query']); // for webwhois.php?query=... and rdap.php?query=...
+		if (isset($_REQUEST['id'])) $this->saveAltIdsForQuery($_REQUEST['id']); // => solve using implementing action()?
+ 	}
 
 	// TODO: call this via cronjob
 	public function renewAll() {
 		if (!$this->db_table_exists) return;
-		
+
 		OIDplus::db()->query("delete from ###altids");
 		$resQ = OIDplus::db()->query("select * from ###objects");
 		while ($row = $resQ->fetch_array()) {
@@ -112,8 +113,8 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 			if(!$resQ->any()){
 				OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $origin_prefiltered]);
 			}
-		} 
-		
+		}
+
 		foreach ($ary as $a) {
 			$alternative = $a->getNamespace() . ':' . $a->getId();
 			$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
@@ -121,8 +122,8 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 			if(!$resQ->any()){
 				OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);
 			}
-	
-			
+
+
 			$alternative_prefiltered = OIDplus::prefilterQuery($alternative, false);
 			if($alternative_prefiltered !== $alternative){
 				$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
@@ -134,35 +135,34 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		}
 	}
 
-	public function getAlternativesForQuery(string $id/* INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7 signature takes just 1 param!? , $noCache = false*/): array {
+	/**
+	 * Implements interface INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7
+	 * @param string $id
+	 * @return array|string[]
+	 * @throws \ReflectionException
+	 * @throws \ViaThinkSoft\OIDplus\OIDplusConfigInitializationException
+	 * @throws \ViaThinkSoft\OIDplus\OIDplusException
+	 */
+	public function getAlternativesForQuery(string $id): array {
 		if (!$this->db_table_exists) return [];
 
- 
-
-		
-	    
 		$id_prefiltered = OIDplus::prefilterQuery($id, false);
-		//Do we call it here or anywhere else?
-	    $this->saveAltIdsForQuery($id_prefiltered);
-		
+
 		$res = [
 			$id,
-			$id_prefiltered,
-		//	$altId,
+			$id_prefiltered
 		];
 
 		$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? OR alternative = ? OR origin = ? OR alternative = ?", [$res[0],$res[0],$res[1],$res[1]]);
-		while ($row = $resQ->fetch_array()) { 
-			if(!in_array($row['origin'], $res)){ 
+		while ($row = $resQ->fetch_array()) {
+			if(!in_array($row['origin'], $res)){
 				$res[]=$row['origin'];
 			}
-			if(!in_array($row['alternative'], $res)){ 
+			if(!in_array($row['alternative'], $res)){
 				$res[]=$row['alternative'];
 			}
-			
 		}
- 
-			//	 		print_r($res);
+
 		return array_unique($res);
 	}
 
@@ -173,7 +173,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @return void
 	 */
 	public function gui(string $id, array &$out, bool &$handled) {
-       // $this->saveAltIdsForQuery($id);
+		// $this->saveAltIdsForQuery($id);
 	}
 
 	/**
@@ -195,8 +195,6 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		return false;
 	}
 
-
-
 	/**
 	 * @param string $request
 	 * @return array|false
@@ -211,7 +209,8 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @throws \ViaThinkSoft\OIDplus\OIDplusException
 	 */
 	public function getCanonical(string $id){
-	//	$this->saveAltIdsForQuery($id);
+		// TODO: getCanonical() is unused. Can it be removed?
+		//	$this->saveAltIdsForQuery($id);
 		foreach($this->getAlternativesForQuery($id) as $alt){
 			if (strpos($alt,':') !== false) {
 				list($ns, $altIdRaw) = explode(':', $alt, 2);
