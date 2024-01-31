@@ -23,43 +23,49 @@ use ViaThinkSoft\OIDplus\OIDplusNotification;
 // phpcs:enable PSR1.Files.SideEffects
 
 class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
-	implements INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_4, /* whois*Attributes */
-	INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7,  /* getAlternativesForQuery */
-	INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_8,  /* getNotifications */
-	INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3  /* *objects* */
+	implements INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_4,  /* whois*Attributes */
+	           INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7,  /* getAlternativesForQuery */
+	           INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_8,  /* getNotifications */
+	           INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3   /* *objects* */
 {
 
-
-	private $db_table_exists;	
-	
-	
 	/**
+	 * @var bool
+	 */
+	private $db_table_exists;
+
+
+	/**
+	 * Implements interface INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3
 	 * @param string $id
 	 * @return void
 	 */
 	public function beforeObjectDelete(string $id){
-		
+
 	}
 
 	/**
+	 * Implements interface INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3
 	 * @param string $id
 	 * @return void
 	 */
 	public function afterObjectDelete(string $id){
 		if (!$this->db_table_exists) return;
-		 OIDplus::db()->query("delete from ###altids WHERE origin = ? OR alternative = ?", [$id, $id]);
+		OIDplus::db()->query("delete from ###altids WHERE origin = ? OR alternative = ?", [$id, $id]);
 	}
 
 	/**
+	 * Implements interface INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3
 	 * @param string $id
 	 * @param array $params
 	 * @return void
 	 */
 	public function beforeObjectUpdateSuperior(string $id, array &$params){
-		
+
 	}
 
 	/**
+	 * Implements interface INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3
 	 * @param string $id
 	 * @param array $params
 	 * @return void
@@ -69,15 +75,17 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	}
 
 	/**
+	 * Implements interface INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3
 	 * @param string $id
 	 * @param array $params
 	 * @return void
 	 */
 	public function beforeObjectUpdateSelf(string $id, array &$params){
-		
+
 	}
 
 	/**
+	 * Implements interface INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3
 	 * @param string $id
 	 * @param array $params
 	 * @return void
@@ -87,15 +95,17 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	}
 
 	/**
+	 * Implements interface INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3
 	 * @param string $id
 	 * @param array $params
 	 * @return void
 	 */
 	public function beforeObjectInsert(string $id, array &$params){
-		
+
 	}
 
 	/**
+	 * Implements interface INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3
 	 * @param string $id
 	 * @param array $params
 	 * @return void
@@ -103,19 +113,15 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	public function afterObjectInsert(string $id, array &$params){
 		$this->saveAltIdsForQuery($id);
 	}
+
+
 	/**
-	 * @param string $actionID
-	 * @param array $params
-	 * @return array
+	 * Adds the required database table if DBMS is known
+	 * @param bool $html
+	 * @return void
+	 * @throws \ViaThinkSoft\OIDplus\OIDplusConfigInitializationException
 	 * @throws \ViaThinkSoft\OIDplus\OIDplusException
 	 */
-	//will be extended?
-	//public function action(string $actionID, array $params): array {
-	//	return parent::action($actionID, $params);
-	//}
-
-
-	//+ add table altids
 	public function init(bool $html=true) {
 		if (!OIDplus::db()->tableExists("###altids")) {
 			if (OIDplus::db()->getSlang()->id() == 'mysql') {
@@ -152,9 +158,9 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		if (isset($_REQUEST['goto'])) $this->saveAltIdsForQuery($_REQUEST['goto']); // => solve using implementing gui()?
 		if (isset($_REQUEST['query'])) $this->saveAltIdsForQuery($_REQUEST['query']); // for webwhois.php?query=... and rdap.php?query=...
 		if (isset($_REQUEST['id'])) $this->saveAltIdsForQuery($_REQUEST['id']); // => solve using implementing action()?
- 	}
+	}
 
-	// TODO: call this via cronjob
+	// TODO: call this via cronjob  https://github.com/frdl/oidplus-plugin-alternate-id-tracking/issues/20
 	public function renewAll() {
 		if (!$this->db_table_exists) return;
 
@@ -313,7 +319,6 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		$out1 = array();
 		$out2 = array();
 
-		// DM 28.01.2024 Fix that OID-IP output shows both prefiltered and nonfiltered identifiers
 		//$tmp = $this->getAlternativesForQuery($id);
 		$obj = OIDplusObject::parse($id);
 		$tmp = [
