@@ -9,6 +9,7 @@
 
 namespace Frdlweb\OIDplus;
 
+use ViaThinkSoft\OIDplus\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3;
 use ViaThinkSoft\OIDplus\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_4;
 use ViaThinkSoft\OIDplus\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7;
 use ViaThinkSoft\OIDplus\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_8;
@@ -24,9 +25,83 @@ use ViaThinkSoft\OIDplus\OIDplusNotification;
 class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	implements INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_4, /* whois*Attributes */
 	INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7,  /* getAlternativesForQuery */
-	INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_8  /* getNotifications */
+	INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_8,  /* getNotifications */
+	INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3  /* *objects* */
 {
 
+
+	private $db_table_exists;	
+	
+	
+	/**
+	 * @param string $id
+	 * @return void
+	 */
+	public function beforeObjectDelete(string $id){
+		
+	}
+
+	/**
+	 * @param string $id
+	 * @return void
+	 */
+	public function afterObjectDelete(string $id){
+		 OIDplus::db()->query("delete from ###altids WHERE origin = ? OR alternative = ?", [$id, $id]);
+	}
+
+	/**
+	 * @param string $id
+	 * @param array $params
+	 * @return void
+	 */
+	public function beforeObjectUpdateSuperior(string $id, array &$params){
+		
+	}
+
+	/**
+	 * @param string $id
+	 * @param array $params
+	 * @return void
+	 */
+	public function afterObjectUpdateSuperior(string $id, array &$params){
+		$this->saveAltIdsForQuery($id);
+	}
+
+	/**
+	 * @param string $id
+	 * @param array $params
+	 * @return void
+	 */
+	public function beforeObjectUpdateSelf(string $id, array &$params){
+		
+	}
+
+	/**
+	 * @param string $id
+	 * @param array $params
+	 * @return void
+	 */
+	public function afterObjectUpdateSelf(string $id, array &$params){
+		$this->saveAltIdsForQuery($id);
+	}
+
+	/**
+	 * @param string $id
+	 * @param array $params
+	 * @return void
+	 */
+	public function beforeObjectInsert(string $id, array &$params){
+		
+	}
+
+	/**
+	 * @param string $id
+	 * @param array $params
+	 * @return void
+	 */
+	public function afterObjectInsert(string $id, array &$params){
+		$this->saveAltIdsForQuery($id);
+	}
 	/**
 	 * @param string $actionID
 	 * @param array $params
@@ -38,7 +113,6 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	//	return parent::action($actionID, $params);
 	//}
 
-	private $db_table_exists;
 
 	//+ add table altids
 	public function init(bool $html=true) {
