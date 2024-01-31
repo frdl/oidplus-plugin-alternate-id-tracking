@@ -45,25 +45,25 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		// TODO: Also support SQL Server, PgSql, Access, SQLite, Oracle
 		if (!OIDplus::db()->tableExists("###altids")) {
 			if (OIDplus::db()->getSlang()->id() == 'mysql') {
-				OIDplus::db()->query("CREATE TABLE ###altids (   `origin` varchar(255) NOT NULL,    `alternative` varchar(255) NOT NULL,    UNIQUE KEY (`origin`, `alternative`)   )");
+				OIDplus::db()->query("CREATE TABLE ###altids ( `origin` varchar(255) NOT NULL, `alternative` varchar(255) NOT NULL, UNIQUE KEY (`origin`, `alternative`)   )");
 				$this->db_table_exists = true;
 			} else if (OIDplus::db()->getSlang()->id() == 'mssql') {
-				// TODO: Implement Table Creation for this DBMS
-				$this->db_table_exists = false;
+				OIDplus::db()->query("CREATE TABLE ###altids ( [origin] varchar(255) NOT NULL, [alternative] varchar(255) NOT NULL, CONSTRAINT [PK_###altids] PRIMARY KEY CLUSTERED( [origin] ASC, [alternative] ASC ) )");
+				$this->db_table_exists = true;
 			} else if (OIDplus::db()->getSlang()->id() == 'oracle') {
-				// TODO: Implement Table Creation for this DBMS
+				// TODO: Implement Table Creation for this DBMS (see CREATE TABLE syntax at plugins/viathinksoft/sqlSlang/oracle/sql/*.sql)
 				$this->db_table_exists = false;
 			} else if (OIDplus::db()->getSlang()->id() == 'pgsql') {
-				// TODO: Implement Table Creation for this DBMS
+				// TODO: Implement Table Creation for this DBMS (see CREATE TABLE syntax at plugins/viathinksoft/sqlSlang/pgsql/sql/*.sql)
 				$this->db_table_exists = false;
 			} else if (OIDplus::db()->getSlang()->id() == 'access') {
-				// TODO: Implement Table Creation for this DBMS
+				// TODO: Implement Table Creation for this DBMS (see CREATE TABLE syntax at plugins/viathinksoft/sqlSlang/access/sql/*.sql)
 				$this->db_table_exists = false;
 			} else if (OIDplus::db()->getSlang()->id() == 'sqlite') {
-				// TODO: Implement Table Creation for this DBMS
+				// TODO: Implement Table Creation for this DBMS (see CREATE TABLE syntax at plugins/viathinksoft/sqlSlang/sqlite/sql/*.sql)
 				$this->db_table_exists = false;
 			} else if (OIDplus::db()->getSlang()->id() == 'firebird') {
-				// TODO: Implement Table Creation for this DBMS
+				// TODO: Implement Table Creation for this DBMS (see CREATE TABLE syntax at plugins/viathinksoft/sqlSlang/firebird/sql/*.sql)
 				$this->db_table_exists = false;
 			} else {
 				// DBMS not supported
