@@ -42,7 +42,6 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 
 	//+ add table altids
 	public function init(bool $html=true) {
-		// TODO: Also support SQL Server, PgSql, Access, SQLite, Oracle
 		if (!OIDplus::db()->tableExists("###altids")) {
 			if (OIDplus::db()->getSlang()->id() == 'mysql') {
 				OIDplus::db()->query("CREATE TABLE ###altids ( `origin` varchar(255) NOT NULL, `alternative` varchar(255) NOT NULL, UNIQUE KEY (`origin`, `alternative`)   )");
@@ -209,8 +208,6 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @throws \ViaThinkSoft\OIDplus\OIDplusException
 	 */
 	public function getCanonical(string $id){
-		// TODO: getCanonical() is unused. Can it be removed?
-		//	$this->saveAltIdsForQuery($id);
 		foreach($this->getAlternativesForQuery($id) as $alt){
 			if (strpos($alt,':') !== false) {
 				list($ns, $altIdRaw) = explode(':', $alt, 2);
