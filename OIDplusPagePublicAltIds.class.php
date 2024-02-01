@@ -129,9 +129,9 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 				$this->db_table_exists = true;
 			} else if (OIDplus::db()->getSlang()->id() == 'mssql') {
 				// We use nvarchar(225) instead of varchar(255), see https://github.com/frdl/oidplus-plugin-alternate-id-tracking/issues/18
-				// Unfortunately, we cannot use nvarchar(255), because we need to of them for the primary key, and an index must not be greater than 900 bytes.
-				// Therefore we can only use 225 bytes, not 255 bytes.
-				// It is very unlikely that someone has such giant identifiers. But if they do, then saveAltIdsForQuery() will reject the INSERT commands
+				// Unfortunately, we cannot use nvarchar(255), because we need two of them for the primary key, and an index must not be greater than 900 bytes in SQL Server.
+				// Therefore we can only use 225 Unicode characters instead of 255.
+				// It is very unlikely that someone has such giant identifiers. But if they do, then saveAltIdsForQuery() will reject the INSERT commands to avoid that an SQL Exception is thrown.
 				OIDplus::db()->query("CREATE TABLE ###altids ( [origin] nvarchar(225) NOT NULL, [alternative] nvarchar(225) NOT NULL, CONSTRAINT [PK_###altids] PRIMARY KEY CLUSTERED( [origin] ASC, [alternative] ASC ) )");
 				$this->db_table_exists = true;
 			} else if (OIDplus::db()->getSlang()->id() == 'oracle') {
@@ -321,7 +321,6 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 				}
 			}
 		}
-
 		return false;
 	}
 
