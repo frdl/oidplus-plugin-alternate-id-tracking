@@ -51,7 +51,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 */
 	public function afterObjectDelete(string $id){
 		if (!$this->db_table_exists) return;
-		OIDplus::db()->query("delete from ###altids WHERE origin = ?", [$id]);
+		OIDplus::db()->query("DELETE FROM ###altids WHERE origin = ?", [$id]);
 	}
 
 	/**
@@ -168,8 +168,8 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	public function renewAll() {
 		if (!$this->db_table_exists) return;
 
-		OIDplus::db()->query("delete from ###altids");
-		$resQ = OIDplus::db()->query("select * from ###objects");
+		OIDplus::db()->query("DELETE FROM ###altids");
+		$resQ = OIDplus::db()->query("SELECT * FROM ###objects");
 		while ($row = $resQ->fetch_array()) {
 			$this->saveAltIdsForQuery($row['id']);
 		}
@@ -178,6 +178,13 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	protected function saveAltIdsForQuery(string $id){
 		if (!$this->db_table_exists) return;
 
+		$obj = OIDplusObject::parse($id);
+		if (!$obj) return; // e.g. if plugin is disabled
+		$ary = $obj->getAltIds();
+		$origin = $obj->nodeId(true);
+
+		OIDplus::db()->query("DELETE FROM ###altids WHERE origin = ?", [$id]);
+
 		// Why prefiltering? Consider the following testcase:
 		// "oid:1.3.6.1.4.1.37553.8.8.2" defines alt ID "mac:63-CF-E4-AE-C5-66" which is NOT canonized (otherwise it would not look good)!
 		// You must be able to enter "mac:63-CF-E4-AE-C5-66" in the search box, which gets canonized
@@ -185,11 +192,6 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		// Therefore we use self::special_in_array().
 		// However, it is mandatory, that previously saveAltIdsForQuery("oid:1.3.6.1.4.1.37553.8.8.2") was called once!
 		// Please also note that the "weid:" to "oid:" converting is handled by prefilterQuery(), but only if the OID plugin is installed.
-
-		$obj = OIDplusObject::parse($id);
-		if (!$obj) return; // e.g. if plugin is disabled
-		$ary = $obj->getAltIds();
-		$origin = $obj->nodeId(true);
 		$origin_prefiltered = OIDplus::prefilterQuery($origin, false);
 		if($origin_prefiltered !== $origin){
 			$ok = true;
@@ -198,10 +200,11 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 				if ((strlen($origin) > 225) || (strlen($origin_prefiltered) > 225)) $ok = false;
 			}
 			if ($ok) {
-				$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
-					[$origin, $origin_prefiltered]);
-				if (!$resQ->any()) {
+				try {
 					OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $origin_prefiltered]);
+				} catch (\Exception $e) {
+					// There could be a Primary Key collission if this method is called simultaneously at the same moment
+					// Ignore it. The last caller will eventually execute all INSERTs after its call to DELETE.
 				}
 			}
 		}
@@ -214,10 +217,11 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 				if ((strlen($origin) > 225) || (strlen($alternative) > 225)) $ok = false;
 			}
 			if ($ok) {
-				$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
-					[$origin, $alternative]);
-				if (!$resQ->any()) {
+				try {
 					OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);
+				} catch (\Exception $e) {
+					// There could be a Primary Key collission if this method is called simultaneously at the same moment
+					// Ignore it. The last caller will eventually execute all INSERTs after its call to DELETE.
 				}
 			}
 
@@ -229,10 +233,11 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 					if ((strlen($origin) > 225) || (strlen($alternative_prefiltered) > 225)) $ok = false;
 				}
 				if ($ok) {
-					$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? AND alternative = ?",
-						[$origin, $alternative_prefiltered]);
-					if (!$resQ->any()) {
+					try {
 						OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative_prefiltered]);
+					} catch (\Exception $e) {
+						// There could be a Primary Key collission if this method is called simultaneously at the same moment
+						// Ignore it. The last caller will eventually execute all INSERTs after its call to DELETE.
 					}
 				}
 			}
@@ -257,7 +262,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 			$id_prefiltered
 		];
 
-		$resQ = OIDplus::db()->query("select origin, alternative from ###altids WHERE origin = ? OR alternative = ? OR origin = ? OR alternative = ?", [$res[0],$res[0],$res[1],$res[1]]);
+		$resQ = OIDplus::db()->query("SELECT origin, alternative FROM ###altids WHERE origin = ? OR alternative = ? OR origin = ? OR alternative = ?", [$res[0],$res[0],$res[1],$res[1]]);
 		while ($row = $resQ->fetch_array()) {
 			if(!in_array($row['origin'], $res)){
 				$res[]=$row['origin'];
