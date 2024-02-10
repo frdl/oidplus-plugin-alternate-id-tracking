@@ -1,8 +1,11 @@
 {
   "name": "frdl/oidplus-plugin-alternate-id-tracking",
   "description": "Track/Cache AltIds e.g. to enable reverse look-up of original identifiers by its alternate id.",
+  "version": "1.0.8",
   "type": "oiplus-plugin-public-pages",
-  "keywords": ["oiplus"],
+  "keywords": [
+    "oiplus"
+  ],
   "license": "MIT",
   "authors": [
     {
@@ -10,24 +13,22 @@
       "email": "software@frdl.de",
       "homepage": "https://frdl.de"
     },
-	{
-	  "name" : "Daniel Marschall",
-	  "homepage" : "https://www.viathinksoft.com"		  
-	}
+    {
+      "name": "Daniel Marschall",
+      "homepage": "https://www.viathinksoft.com"
+    }
   ],
-    "extra" : {
-        "installer-name" : "altids"
-    },
+  "extra": {
+    "installer-name": "altids"
+  },
   "require": {
-    "php": ">=7.2|>=8.1"
+    "php": ">=7.0"
   },
-  "require-dev": {
-   
-  },
+  "require-dev": {},
   "autoload": {
-	    "classmap"  : ["OIDplusPagePublicAltIds.class.php"]
+    "classmap": [
+      "OIDplusPagePublicAltIds.class.php"
+    ]
   },
-  "autoload-dev": {
-
-  }
+  "autoload-dev": {}
 }
