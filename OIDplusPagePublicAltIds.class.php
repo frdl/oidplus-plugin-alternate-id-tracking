@@ -51,7 +51,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 */
 	public function afterObjectDelete(string $id){
 		if (!$this->db_table_exists) return;
-		OIDplus::db()->query("delete from ###altids WHERE origin = ? OR alternative = ?", [$id, $id]);
+		OIDplus::db()->query("delete from ###altids WHERE origin = ?", [$id]);
 	}
 
 	/**
