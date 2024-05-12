@@ -1,7 +1,6 @@
 {
   "name": "frdl/oidplus-plugin-alternate-id-tracking",
   "description": "Track/Cache AltIds e.g. to enable reverse look-up of original identifiers by its alternate id.",
-  "version": "1.0.8",
   "type": "oiplus-plugin-public-pages",
   "keywords": [
     "oiplus"
