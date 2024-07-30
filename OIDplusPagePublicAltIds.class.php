@@ -7,16 +7,18 @@
  * Licensed under the MIT License.
  */
 
-namespace Frdlweb\OIDplus;
+namespace Frdlweb\OIDplus\Plugins\AltIds;
 
-use ViaThinkSoft\OIDplus\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3;
-use ViaThinkSoft\OIDplus\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_4;
-use ViaThinkSoft\OIDplus\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7;
-use ViaThinkSoft\OIDplus\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_8;
-use ViaThinkSoft\OIDplus\OIDplus;
-use ViaThinkSoft\OIDplus\OIDplusObject;
-use ViaThinkSoft\OIDplus\OIDplusPagePluginPublic;
-use ViaThinkSoft\OIDplus\OIDplusNotification;
+use ViaThinkSoft\OIDplus\Core\OIDplus;
+use ViaThinkSoft\OIDplus\Core\OIDplusConfigInitializationException;
+use ViaThinkSoft\OIDplus\Core\OIDplusException;
+use ViaThinkSoft\OIDplus\Core\OIDplusObject;
+use ViaThinkSoft\OIDplus\Core\OIDplusPagePluginPublic;
+use ViaThinkSoft\OIDplus\Plugins\AdminPages\Notifications\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_8;
+use ViaThinkSoft\OIDplus\Plugins\AdminPages\Notifications\OIDplusNotification;
+use ViaThinkSoft\OIDplus\Plugins\PublicPages\Objects\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3;
+use ViaThinkSoft\OIDplus\Plugins\PublicPages\Objects\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7;
+use ViaThinkSoft\OIDplus\Plugins\PublicPages\Whois\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_4;
 
 // phpcs:disable PSR1.Files.SideEffects
 \defined('INSIDE_OIDPLUS') or die;
@@ -40,7 +42,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @param string $id
 	 * @return void
 	 */
-	public function beforeObjectDelete(string $id){
+	public function beforeObjectDelete(string $id): void {
 
 	}
 
@@ -49,7 +51,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @param string $id
 	 * @return void
 	 */
-	public function afterObjectDelete(string $id){
+	public function afterObjectDelete(string $id): void {
 		if (!$this->db_table_exists) return;
 		OIDplus::db()->query("DELETE FROM ###altids WHERE origin = ?", [$id]);
 	}
@@ -60,7 +62,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @param array $params
 	 * @return void
 	 */
-	public function beforeObjectUpdateSuperior(string $id, array &$params){
+	public function beforeObjectUpdateSuperior(string $id, array &$params): void {
 
 	}
 
@@ -70,7 +72,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @param array $params
 	 * @return void
 	 */
-	public function afterObjectUpdateSuperior(string $id, array &$params){
+	public function afterObjectUpdateSuperior(string $id, array &$params): void {
 		$this->saveAltIdsForQuery($id);
 	}
 
@@ -80,7 +82,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @param array $params
 	 * @return void
 	 */
-	public function beforeObjectUpdateSelf(string $id, array &$params){
+	public function beforeObjectUpdateSelf(string $id, array &$params): void {
 
 	}
 
@@ -90,7 +92,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @param array $params
 	 * @return void
 	 */
-	public function afterObjectUpdateSelf(string $id, array &$params){
+	public function afterObjectUpdateSelf(string $id, array &$params): void {
 		$this->saveAltIdsForQuery($id);
 	}
 
@@ -100,7 +102,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @param array $params
 	 * @return void
 	 */
-	public function beforeObjectInsert(string $id, array &$params){
+	public function beforeObjectInsert(string $id, array &$params): void {
 
 	}
 
@@ -110,7 +112,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @param array $params
 	 * @return void
 	 */
-	public function afterObjectInsert(string $id, array &$params){
+	public function afterObjectInsert(string $id, array &$params): void {
 		$this->saveAltIdsForQuery($id);
 	}
 
@@ -119,10 +121,10 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * Adds the required database table if DBMS is known
 	 * @param bool $html
 	 * @return void
-	 * @throws \ViaThinkSoft\OIDplus\OIDplusConfigInitializationException
-	 * @throws \ViaThinkSoft\OIDplus\OIDplusException
+	 * @throws OIDplusConfigInitializationException
+	 * @throws OIDplusException
 	 */
-	public function init(bool $html=true) {
+	public function init(bool $html=true): void {
 		if (!OIDplus::db()->tableExists("###altids")) {
 			if (OIDplus::db()->getSlang()->id() == 'mysql') {
 				OIDplus::db()->query("CREATE TABLE ###altids ( `origin` varchar(255) NOT NULL, `alternative` varchar(255) NOT NULL, UNIQUE KEY (`origin`, `alternative`)   )");
@@ -249,8 +251,8 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @param string $id
 	 * @return array|string[]
 	 * @throws \ReflectionException
-	 * @throws \ViaThinkSoft\OIDplus\OIDplusConfigInitializationException
-	 * @throws \ViaThinkSoft\OIDplus\OIDplusException
+	 * @throws OIDplusConfigInitializationException
+	 * @throws OIDplusException
 	 */
 	public function getAlternativesForQuery(string $id): array {
 		if (!$this->db_table_exists) return [];
@@ -281,7 +283,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @param bool $handled
 	 * @return void
 	 */
-	public function gui(string $id, array &$out, bool &$handled) {
+	public function gui(string $id, array &$out, bool &$handled): void {
 		// $this->saveAltIdsForQuery($id);
 	}
 
@@ -289,7 +291,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @param array $out
 	 * @return void
 	 */
-	public function publicSitemap(array &$out) {
+	public function publicSitemap(array &$out): void {
 
 	}
 
@@ -315,7 +317,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	/**
 	 * @param string $id
 	 * @return false|mixed|string
-	 * @throws \ViaThinkSoft\OIDplus\OIDplusException
+	 * @throws OIDplusException
 	 */
 	public function getCanonical(string $id){
 		foreach($this->getAlternativesForQuery($id) as $alt){
@@ -334,9 +336,9 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @param string $id
 	 * @param array $out
 	 * @return void
-	 * @throws \ViaThinkSoft\OIDplus\OIDplusException
+	 * @throws OIDplusException
 	 */
-	public function whoisObjectAttributes(string $id, array &$out) {
+	public function whoisObjectAttributes(string $id, array &$out): void {
 		$xmlns = 'oidplus-frdlweb-altids-plugin';
 		$xmlschema = 'urn:oid:1.3.6.1.4.1.37553.8.1.8.8.53354196964.641310544.1714020422';
 		$xmlschemauri = OIDplus::webpath(__DIR__.'/altids.xsd',OIDplus::PATH_ABSOLUTE_CANONICAL);
@@ -412,7 +414,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @param array $out
 	 * @return void
 	 */
-	public function whoisRaAttributes(string $email, array &$out) {
+	public function whoisRaAttributes(string $email, array &$out): void {
 
 	}
 
@@ -420,7 +422,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * Implements interface INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_8
 	 * @param string|null $user
 	 * @return array
-	 * @throws \ViaThinkSoft\OIDplus\OIDplusException
+	 * @throws OIDplusException
 	 */
 	public function getNotifications(string $user=null): array {
 		$notifications = array();
