@@ -7,7 +7,7 @@
  * Licensed under the MIT License.
  */
 
-namespace Frdlweb\OIDplus\Plugins\AltIds;
+namespace Frdlweb\OIDplus\Plugins\PublicPages\AltIds;
 
 use ViaThinkSoft\OIDplus\Core\OIDplus;
 use ViaThinkSoft\OIDplus\Core\OIDplusConfigInitializationException;
@@ -19,6 +19,8 @@ use ViaThinkSoft\OIDplus\Plugins\AdminPages\Notifications\OIDplusNotification;
 use ViaThinkSoft\OIDplus\Plugins\PublicPages\Objects\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_3;
 use ViaThinkSoft\OIDplus\Plugins\PublicPages\Objects\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_7;
 use ViaThinkSoft\OIDplus\Plugins\PublicPages\Whois\INTF_OID_1_3_6_1_4_1_37476_2_5_2_3_4;
+
+use Jajo\JSONDB;
 
 // phpcs:disable PSR1.Files.SideEffects
 \defined('INSIDE_OIDPLUS') or die;
@@ -35,6 +37,9 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @var bool
 	 */
 	private $db_table_exists;
+	
+	protected $json_db;
+	protected $jsondbDir;
 
 
 	/**
@@ -52,6 +57,12 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @return void
 	 */
 	public function afterObjectDelete(string $id): void {
+		
+        $this->json_db->delete()	
+			->from('altids.json' )	
+			->where( [ 'origin' => $id ] )	
+			->trigger();		
+		
 		if (!$this->db_table_exists) return;
 		OIDplus::db()->query("DELETE FROM ###altids WHERE origin = ?", [$id]);
 	}
@@ -159,6 +170,42 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 			$this->db_table_exists = true;
 		}
 
+		
+		
+		
+    spl_autoload_register(function (string $class_name): void {
+      // Map the namespace to the corresponding folder
+      $namespace_mapping = [
+        'Jajo\\' => 'php-jsondb'. \DIRECTORY_SEPARATOR.'src', 
+      ];
+ 
+      foreach ($namespace_mapping as $namespace => $directory) {
+        if (
+            strpos($class_name, $namespace = trim($namespace, '\\')) !== 0
+            || (!$directory = realpath(__DIR__ . \DIRECTORY_SEPARATOR . trim($directory, \DIRECTORY_SEPARATOR)))
+        ) {
+            continue;  
+        }
+ 
+        // Require the file
+          $class_file = $directory . str_replace([$namespace, '\\'], ['', \DIRECTORY_SEPARATOR], $class_name) . '.php';
+          if (file_exists($class_file)) {
+            require_once $class_file;
+          }
+        }
+    });		
+		
+		
+		require_once __DIR__ . \DIRECTORY_SEPARATOR.'php-jsondb'. \DIRECTORY_SEPARATOR.'helpers'. \DIRECTORY_SEPARATOR.'dataTypes.php';
+		require_once __DIR__ . \DIRECTORY_SEPARATOR.'php-jsondb'. \DIRECTORY_SEPARATOR.'helpers'. \DIRECTORY_SEPARATOR.'json.php';
+		
+	    $this->jsondbDir =rtrim( OIDplus::getUserDataDir("jsondb"),  \DIRECTORY_SEPARATOR);	
+		$this->json_db = new JSONDB( $this->jsondbDir );
+		
+		if(!file_exists($this->jsondbDir. \DIRECTORY_SEPARATOR.'altids.json')){
+		 file_put_contents($this->jsondbDir. \DIRECTORY_SEPARATOR.'altids.json', json_encode([]));	
+		}
+		
 		// Whenever a user visits a page, we need to update our cache, so that reverse-lookups are possible later
 		// TODO! Dirty hack. We need a cleaner solution...
 		if (isset($_REQUEST['goto'])) $this->saveAltIdsForQuery($_REQUEST['goto']); // => solve using implementing gui()?
@@ -168,6 +215,10 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 
 	// TODO: call this via cronjob  https://github.com/frdl/oidplus-plugin-alternate-id-tracking/issues/20
 	public function renewAll() {
+		if(file_exists($this->jsondbDir. \DIRECTORY_SEPARATOR.'altids.json')){	
+			unlink($this->jsondbDir. \DIRECTORY_SEPARATOR.'altids.json');
+		}
+		
 		if (!$this->db_table_exists) return;
 
 		OIDplus::db()->query("DELETE FROM ###altids");
@@ -177,7 +228,115 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		}
 	}
 
+	
+	protected function saveAltIdsForQueryFiles(string $id){
+		//if (!$this->db_table_exists) return;
+
+		$obj = OIDplusObject::parse($id);
+		if (!$obj) return; // e.g. if plugin is disabled
+		$ary = $obj->getAltIds();
+		$origin = $obj->nodeId(true);
+
+		//OIDplus::db()->query("DELETE FROM ###altids WHERE origin = ?", [$id]);
+        $this->json_db->delete()	
+			->from('altids.json' )	
+			->where( [ 'origin' => $id ] )	
+			->trigger();
+		
+		// Why prefiltering? Consider the following testcase:
+		// "oid:1.3.6.1.4.1.37553.8.8.2" defines alt ID "mac:63-CF-E4-AE-C5-66" which is NOT canonized (otherwise it would not look good)!
+		// You must be able to enter "mac:63-CF-E4-AE-C5-66" in the search box, which gets canonized
+		// to mac:63CFE4AEC566 and must be resolved to "oid:1.3.6.1.4.1.37553.8.8.2" by this plugin.
+		// Therefore we use self::special_in_array().
+		// However, it is mandatory, that previously saveAltIdsForQuery("oid:1.3.6.1.4.1.37553.8.8.2") was called once!
+		// Please also note that the "weid:" to "oid:" converting is handled by prefilterQuery(), but only if the OID plugin is installed.
+		$origin_prefiltered = OIDplus::prefilterQuery($origin, false);
+		if($origin_prefiltered !== $origin){
+			$ok = true;
+			//if (OIDplus::db()->getSlang()->id() == 'mssql') {
+				// Explanation: See comment in the init() method.
+				if ((strlen($origin) > 225) || (strlen($origin_prefiltered) > 225)) $ok = false;
+			//}
+			if ($ok) {
+			//	try {
+					//OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $origin_prefiltered]);
+			//	} catch (\Exception $e) {
+					// There could be a Primary Key collission if this method is called simultaneously at the same moment
+					// Ignore it. The last caller will eventually execute all INSERTs after its call to DELETE.
+			//	}
+				$exists =count( $this->json_db->select( 'origin, alternative'  )	
+					->from( 'altids.json' )	
+					->where( [ 'origin' => $origin, 'alternative' =>$origin_prefiltered ] )	
+					->get() );
+				if(!$exists)$this->json_db->insert( 'altids.json', 	
+									   [ 	
+										   'origin' => $origin, 		
+										   'alternative' => $origin_prefiltered, 	
+									   ]
+									  );
+			}
+		}
+
+		foreach ($ary as $a) {
+			$alternative = $a->getNamespace() . ':' . $a->getId();
+			$ok = true;
+			//if (OIDplus::db()->getSlang()->id() == 'mssql') {
+				// Explanation: See comment in the init() method.
+				if ((strlen($origin) > 225) || (strlen($alternative) > 225)) $ok = false;
+			//}
+			if ($ok) {
+			//	try {
+					//OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative]);
+			//	} catch (\Exception $e) {
+					// There could be a Primary Key collission if this method is called simultaneously at the same moment
+					// Ignore it. The last caller will eventually execute all INSERTs after its call to DELETE.
+			//	}
+				$exists =count( $this->json_db->select( 'origin, alternative'  )	
+					->from( 'altids.json' )	
+					->where( [ 'origin' => $origin, 'alternative' =>$alternative ] )	
+					->get() );				
+				if(!$exists)$this->json_db->insert( 'altids.json', 	
+									   [ 	
+										   'origin' => $origin, 		
+										   'alternative' => $alternative, 	
+									   ]
+									  );				
+			}
+
+			$alternative_prefiltered = OIDplus::prefilterQuery($alternative, false);
+			if($alternative_prefiltered !== $alternative){
+				$ok = true;
+				//if (OIDplus::db()->getSlang()->id() == 'mssql') {
+					// Explanation: See comment in the init() method.
+					if ((strlen($origin) > 225) || (strlen($alternative_prefiltered) > 225)) $ok = false;
+			//	}
+				if ($ok) {
+					/*
+					try {
+						OIDplus::db()->query("INSERT INTO ###altids (origin, alternative) VALUES (?,?);", [$origin, $alternative_prefiltered]);
+					} catch (\Exception $e) {
+						// There could be a Primary Key collission if this method is called simultaneously at the same moment
+						// Ignore it. The last caller will eventually execute all INSERTs after its call to DELETE.
+					}
+					*/
+				$exists =count( $this->json_db->select( 'origin, alternative'  )	
+					->from( 'altids.json' )	
+					->where( [ 'origin' => $origin, 'alternative' =>$alternative_prefiltered ] )	
+					->get() );							
+				if(!$exists)$this->json_db->insert('altids.json', 	
+									   [ 	
+										   'origin' => $origin, 		
+										   'alternative' => $alternative_prefiltered, 	
+									   ]
+									  );					
+				}
+			}
+		}
+	}	
+	
+	
 	protected function saveAltIdsForQuery(string $id){
+		$this->saveAltIdsForQueryFiles($id);
 		if (!$this->db_table_exists) return;
 
 		$obj = OIDplusObject::parse($id);
@@ -255,7 +414,10 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @throws OIDplusException
 	 */
 	public function getAlternativesForQuery(string $id): array {
-		if (!$this->db_table_exists) return [];
+		$res2 = $this->getAlternativesForQueryFile($id);
+		
+		
+		if (!$this->db_table_exists) return $res2;
 
 		$id_prefiltered = OIDplus::prefilterQuery($id, false);
 
@@ -274,9 +436,38 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 			}
 		}
 
-		return array_unique($res);
+		return array_unique(array_merge($res2,$res));
 	}
 
+	public function getAlternativesForQueryFile(string $id): array {
+		//if (!$this->db_table_exists) return [];
+
+		$id_prefiltered = OIDplus::prefilterQuery($id, false);
+
+		$res = [
+			$id,
+			$id_prefiltered
+		];
+
+		
+		$rows = $this->json_db->select( 'origin, alternative'  )	
+					->from('altids.json' )	
+					->where( [ 'origin' => $res[0], 'alternative' =>$res[0], 'origin' => $res[1], 'alternative' =>$res[1] ], 'OR' )	
+					->get() ;
+		
+		foreach($rows as $row){			
+			if(!in_array($row['origin'], $res)){
+				$res[]=$row['origin'];
+			}
+			if(!in_array($row['alternative'], $res)){
+				$res[]=$row['alternative'];
+			}							   
+		}
+		
+		return array_unique($res);
+	}	
+	
+	
 	/**
 	 * @param string $id
 	 * @param array $out
