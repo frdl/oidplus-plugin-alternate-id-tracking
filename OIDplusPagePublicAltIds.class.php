@@ -2,7 +2,7 @@
 
 /*
  * OIDplus 2.0
- * Copyright 2022 - 2024 Daniel Marschall, ViaThinkSoft / Till Wehowski, Frdlweb
+ * Copyright 2022 - 2024 Daniel Marschall, ViaThinkSoft / Melanie Wehowski, Frdlweb
  *
  * Licensed under the MIT License.
  */
@@ -58,13 +58,15 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 */
 	public function afterObjectDelete(string $id): void {
 		
-        $this->json_db->delete()	
+		if (!$this->db_table_exists) {
+          $this->json_db->delete()	
 			->from('altids.json' )	
 			->where( [ 'origin' => $id ] )	
-			->trigger();		
+			->trigger();					
+		}else{
+			
+		}OIDplus::db()->query("DELETE FROM ###altids WHERE origin = ?", [$id]);
 		
-		if (!$this->db_table_exists) return;
-		OIDplus::db()->query("DELETE FROM ###altids WHERE origin = ?", [$id]);
 	}
 
 	/**
@@ -136,6 +138,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	 * @throws OIDplusException
 	 */
 	public function init(bool $html=true): void {
+		
 		if (!OIDplus::db()->tableExists("###altids")) {
 			if (OIDplus::db()->getSlang()->id() == 'mysql') {
 				OIDplus::db()->query("CREATE TABLE ###altids ( `origin` varchar(255) NOT NULL, `alternative` varchar(255) NOT NULL, UNIQUE KEY (`origin`, `alternative`)   )");
@@ -171,7 +174,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		}
 
 		
-		
+	
 		
     spl_autoload_register(function (string $class_name): void {
       // Map the namespace to the corresponding folder
@@ -195,7 +198,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
         }
     });		
 		
-		
+	if (!$this->db_table_exists) {	
 		require_once __DIR__ . \DIRECTORY_SEPARATOR.'php-jsondb'. \DIRECTORY_SEPARATOR.'helpers'. \DIRECTORY_SEPARATOR.'dataTypes.php';
 		require_once __DIR__ . \DIRECTORY_SEPARATOR.'php-jsondb'. \DIRECTORY_SEPARATOR.'helpers'. \DIRECTORY_SEPARATOR.'json.php';
 		
@@ -205,7 +208,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 		if(!file_exists($this->jsondbDir. \DIRECTORY_SEPARATOR.'altids.json')){
 		 file_put_contents($this->jsondbDir. \DIRECTORY_SEPARATOR.'altids.json', json_encode([]));	
 		}
-		
+	}
 		// Whenever a user visits a page, we need to update our cache, so that reverse-lookups are possible later
 		// TODO! Dirty hack. We need a cleaner solution...
 		if (isset($_REQUEST['goto'])) $this->saveAltIdsForQuery($_REQUEST['goto']); // => solve using implementing gui()?
@@ -215,7 +218,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 
 	// TODO: call this via cronjob  https://github.com/frdl/oidplus-plugin-alternate-id-tracking/issues/20
 	public function renewAll() {
-		if(file_exists($this->jsondbDir. \DIRECTORY_SEPARATOR.'altids.json')){	
+		if(!$this->db_table_exists && file_exists($this->jsondbDir. \DIRECTORY_SEPARATOR.'altids.json')){	
 			unlink($this->jsondbDir. \DIRECTORY_SEPARATOR.'altids.json');
 		}
 		
@@ -230,7 +233,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 
 	
 	protected function saveAltIdsForQueryFiles(string $id){
-		//if (!$this->db_table_exists) return;
+		if ($this->db_table_exists) return [];
 
 		$obj = OIDplusObject::parse($id);
 		if (!$obj) return; // e.g. if plugin is disabled
@@ -440,7 +443,7 @@ class OIDplusPagePublicAltIds extends OIDplusPagePluginPublic
 	}
 
 	public function getAlternativesForQueryFile(string $id): array {
-		//if (!$this->db_table_exists) return [];
+		if ($this->db_table_exists) return [];
 
 		$id_prefiltered = OIDplus::prefilterQuery($id, false);
 
